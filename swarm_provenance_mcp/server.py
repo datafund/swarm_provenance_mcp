@@ -320,13 +320,17 @@ async def main():
                 InitializationOptions(
                     server_name=settings.mcp_server_name,
                     server_version=settings.mcp_server_version,
-                    capabilities=server.get_capabilities()
                 )
             )
     except KeyboardInterrupt:
         logger.info("Received interrupt signal")
     finally:
         cleanup()
+
+
+def main_sync():
+    """Synchronous entry point for CLI script."""
+    asyncio.run(main())
 
 
 if __name__ == "__main__":

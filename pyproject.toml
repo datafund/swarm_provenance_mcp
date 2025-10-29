@@ -42,7 +42,7 @@ dev = [
 ]
 
 [project.scripts]
-swarm-provenance-mcp = "swarm_provenance_mcp.server:main"
+swarm-provenance-mcp = "swarm_provenance_mcp.server:main_sync"
 
 [tool.setuptools.packages.find]
 where = ["."]
