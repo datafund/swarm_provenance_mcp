@@ -103,7 +103,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="upload_data",
-                description="Upload data to the Swarm network. Supports files up to 4KB. Example SWIP-compliant JSON schema: {\"content_hash\": \"sha256:abc123...\", \"provenance_standard\": \"DaTA v1.0.0\", \"encryption\": \"none\", \"data\": {\"your_data\": \"here\"}, \"stamp_id\": \"0xfe2f...\"}",
+                description="Upload data to the Swarm network. Supports files up to 4KB. Validates that the stamp ID exists on this gateway before upload. Example SWIP-compliant JSON schema: {\"content_hash\": \"sha256:abc123...\", \"provenance_standard\": \"DaTA v1.0.0\", \"encryption\": \"none\", \"data\": {\"your_data\": \"here\"}, \"stamp_id\": \"0xfe2f...\"}",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -321,6 +321,37 @@ async def handle_upload_data(arguments: Dict[str, Any]) -> CallToolResult:
         stamp_id = arguments["stamp_id"]
         content_type = arguments.get("content_type", "application/json")
 
+        # First, check if the stamp exists on this gateway
+        try:
+            stamp_details = gateway_client.get_stamp_details(stamp_id)
+
+            # Verify it's a usable stamp
+            if not stamp_details.get("usable", False):
+                return CallToolResult(
+                    content=[TextContent(
+                        type="text",
+                        text=f"Stamp {stamp_id} exists on this gateway but is not usable for uploads. "
+                             f"Please use a different stamp or create a new one with the 'purchase_stamp' tool."
+                    )],
+                    isError=True
+                )
+
+        except RequestException as e:
+            # If we can't get stamp details, it's likely not on this gateway
+            if hasattr(e, 'response') and e.response is not None:
+                if e.response.status_code == 404:
+                    return CallToolResult(
+                        content=[TextContent(
+                            type="text",
+                            text=f"Stamp {stamp_id} is not available on this gateway. "
+                                 f"Please create a new stamp with the 'purchase_stamp' tool."
+                        )],
+                        isError=True
+                    )
+            # Re-raise other errors to be handled by outer try-catch
+            raise
+
+        # Proceed with upload if stamp validation passed
         result = gateway_client.upload_data(data, stamp_id, content_type)
 
         response_text = f"Successfully uploaded data!\\n"
