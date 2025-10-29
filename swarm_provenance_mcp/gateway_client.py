@@ -106,26 +106,6 @@ class SwarmGatewayClient:
         response.raise_for_status()
         return response.json()
 
-    def get_stamp_utilization(self, stamp_id: str) -> float:
-        """Get utilization percentage for a specific stamp.
-
-        Args:
-            stamp_id: The batch ID of the stamp
-
-        Returns:
-            Utilization percentage (0.0 to 100.0)
-
-        Raises:
-            RequestException: If the request fails
-        """
-        stamp_details = self.get_stamp_details(stamp_id)
-        utilization = stamp_details.get("utilization")
-
-        if utilization is not None:
-            return float(utilization)
-        else:
-            # If utilization is not available, return 0.0
-            return 0.0
 
     def close(self):
         """Close the HTTP session."""

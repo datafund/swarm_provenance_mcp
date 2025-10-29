@@ -102,20 +102,6 @@ def create_server() -> Server:
                     "required": ["stamp_id", "amount"]
                 }
             ),
-            Tool(
-                name="get_stamp_utilization",
-                description="Get utilization percentage for a specific stamp",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "stamp_id": {
-                            "type": "string",
-                            "description": "The batch ID of the stamp to check"
-                        }
-                    },
-                    "required": ["stamp_id"]
-                }
-            ),
         ]
 
     @server.call_tool()
@@ -130,8 +116,6 @@ def create_server() -> Server:
                 return await handle_list_stamps(arguments)
             elif name == "extend_stamp":
                 return await handle_extend_stamp(arguments)
-            elif name == "get_stamp_utilization":
-                return await handle_get_stamp_utilization(arguments)
             else:
                 return CallToolResult(
                     content=[
@@ -279,26 +263,6 @@ async def handle_extend_stamp(arguments: Dict[str, Any]) -> CallToolResult:
         )
 
 
-async def handle_get_stamp_utilization(arguments: Dict[str, Any]) -> CallToolResult:
-    """Handle stamp utilization requests."""
-    try:
-        stamp_id = arguments["stamp_id"]
-        utilization = gateway_client.get_stamp_utilization(stamp_id)
-
-        response_text = f"Stamp Utilization for {stamp_id}:\n"
-        response_text += f"Utilization: {utilization:.2f}%"
-
-        return CallToolResult(
-            content=[TextContent(type="text", text=response_text)]
-        )
-
-    except RequestException as e:
-        error_msg = f"Failed to get stamp utilization: {str(e)}"
-        logger.error(error_msg)
-        return CallToolResult(
-            content=[TextContent(type="text", text=error_msg)],
-            isError=True
-        )
 
 
 async def main():

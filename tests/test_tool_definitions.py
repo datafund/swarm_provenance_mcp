@@ -58,8 +58,7 @@ class TestToolDefinitions:
             'purchase_stamp',
             'get_stamp_status',
             'list_stamps',
-            'extend_stamp',
-            'get_stamp_utilization'
+            'extend_stamp'
         }
 
         actual_tools = {tool.name for tool in tool_list}
@@ -116,8 +115,7 @@ class TestToolDefinitions:
             'purchase_stamp': [],  # All parameters have defaults
             'get_stamp_status': ['stamp_id'],
             'list_stamps': [],  # No parameters
-            'extend_stamp': ['stamp_id', 'amount'],
-            'get_stamp_utilization': ['stamp_id']
+            'extend_stamp': ['stamp_id', 'amount']
         }
 
         for tool in tool_list:
@@ -138,8 +136,7 @@ class TestToolDefinitions:
             'purchase_stamp': 'purchase_stamp',
             'get_stamp_details': 'get_stamp_status',
             'list_stamps': 'list_stamps',
-            'extend_stamp': 'extend_stamp',
-            'get_stamp_utilization': 'get_stamp_utilization'
+            'extend_stamp': 'extend_stamp'
         }
 
         for method_name in method_to_tool_mapping:
@@ -224,7 +221,7 @@ class TestToolImplementationSync:
         client = SwarmGatewayClient()
         critical_methods = [
             'purchase_stamp', 'get_stamp_details', 'list_stamps',
-            'extend_stamp', 'get_stamp_utilization'
+            'extend_stamp'
         ]
 
         for method_name in critical_methods:

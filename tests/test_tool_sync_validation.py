@@ -114,7 +114,7 @@ class TestToolSynchronization:
 
         expected_tools = {
             'purchase_stamp', 'get_stamp_status', 'list_stamps',
-            'extend_stamp', 'get_stamp_utilization'
+            'extend_stamp'
         }
 
         found_tools = set(tools.keys())
@@ -128,7 +128,7 @@ class TestToolSynchronization:
 
         expected_methods = {
             'purchase_stamp', 'get_stamp_details', 'list_stamps',
-            'extend_stamp', 'get_stamp_utilization'
+            'extend_stamp'
         }
 
         missing_methods = expected_methods - methods
@@ -171,7 +171,7 @@ class TestToolSynchronization:
 
         expected_tools = {
             'purchase_stamp', 'get_stamp_status', 'list_stamps',
-            'extend_stamp', 'get_stamp_utilization'
+            'extend_stamp'
         }
 
         missing_tools = expected_tools - tool_names
@@ -183,7 +183,7 @@ class TestToolSynchronization:
 
         expected_methods = {
             'purchase_stamp', 'get_stamp_details', 'list_stamps',
-            'extend_stamp', 'get_stamp_utilization'
+            'extend_stamp'
         }
 
         actual_methods = {name for name, _ in inspect.getmembers(client, inspect.ismethod)

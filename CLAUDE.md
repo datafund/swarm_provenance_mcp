@@ -65,12 +65,9 @@ AI Agents → MCP Server → Gateway Client → swarm_connect Gateway → Swarm 
 
 ### Available MCP Tools
 - `purchase_stamp` - Create new postage stamps
-- `get_stamp_status` - Retrieve stamp information
+- `get_stamp_status` - Retrieve detailed stamp information (includes utilization data)
 - `list_stamps` - List all available stamps
 - `extend_stamp` - Add funds to existing stamps
-- `get_stamp_utilization` - Check stamp usage statistics
-- `upload_data` - Upload data to Swarm network
-- `download_data` - Download data from Swarm by reference
 
 ### Dependencies Architecture
 - **MCP Framework**: Uses `mcp>=1.0.0` for protocol implementation

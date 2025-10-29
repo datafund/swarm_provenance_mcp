@@ -51,10 +51,6 @@ class TestToolExecution:
                 "batchID": "test_batch_123",
                 "message": "Stamp extended successfully"
             }
-            mock_client.get_stamp_utilization.return_value = {
-                "batchID": "test_batch_123",
-                "utilization": 0.15
-            }
 
             yield mock_client
 
@@ -171,21 +167,6 @@ class TestToolExecution:
             "test_batch_123", 1000000000
         )
 
-    async def test_get_stamp_utilization_tool(self, server, mock_gateway_client):
-        """Test get_stamp_utilization tool execution."""
-        handler = await self.get_call_tool_handler(server)
-        assert handler is not None
-
-        request = CallToolRequest(
-            name="get_stamp_utilization",
-            arguments={"stamp_id": "test_batch_123"}
-        )
-
-        result = await handler(request)
-
-        assert isinstance(result, CallToolResult)
-        assert not result.isError
-        mock_gateway_client.get_stamp_utilization.assert_called_once_with("test_batch_123")
 
     async def test_upload_data_tool(self, server, mock_gateway_client):
         """Test upload_data tool execution."""
@@ -286,8 +267,7 @@ class TestToolExecution:
             ("purchase_stamp", {}),
             ("get_stamp_status", {"stamp_id": "test_123"}),
             ("list_stamps", {}),
-            ("extend_stamp", {"stamp_id": "test_123", "amount": 1000000000}),
-            ("get_stamp_utilization", {"stamp_id": "test_123"})
+            ("extend_stamp", {"stamp_id": "test_123", "amount": 1000000000})
         ]
 
         for tool_name, arguments in tools_to_test:
