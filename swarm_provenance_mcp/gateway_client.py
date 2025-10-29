@@ -139,7 +139,14 @@ class SwarmGatewayClient:
             'content_type': content_type
         }
 
-        response = self.session.post(url, files=files, params=params, timeout=30)
+        # For file uploads, temporarily remove Content-Type from session to let requests set multipart/form-data
+        original_content_type = self.session.headers.pop('Content-Type', None)
+        try:
+            response = self.session.post(url, files=files, params=params, timeout=30)
+        finally:
+            # Restore the Content-Type header
+            if original_content_type:
+                self.session.headers['Content-Type'] = original_content_type
         response.raise_for_status()
         return response.json()
 

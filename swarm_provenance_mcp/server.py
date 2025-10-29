@@ -322,6 +322,11 @@ async def handle_upload_data(arguments: Dict[str, Any]) -> CallToolResult:
         content_type = arguments.get("content_type", "application/json")
 
         # First, check if the stamp exists on this gateway
+        # Note: Newly purchased stamps may not be immediately available via get_stamp_details
+        # so we'll try to validate but allow upload to proceed if validation fails with 404
+        stamp_validation_failed = False
+        validation_error_msg = ""
+
         try:
             stamp_details = gateway_client.get_stamp_details(stamp_id)
 
@@ -337,19 +342,19 @@ async def handle_upload_data(arguments: Dict[str, Any]) -> CallToolResult:
                 )
 
         except RequestException as e:
-            # If we can't get stamp details, it's likely not on this gateway
+            # If we can't get stamp details, it might be a timing issue with newly purchased stamps
             if hasattr(e, 'response') and e.response is not None:
                 if e.response.status_code == 404:
-                    return CallToolResult(
-                        content=[TextContent(
-                            type="text",
-                            text=f"Stamp {stamp_id} is not available on this gateway. "
-                                 f"Please create a new stamp with the 'purchase_stamp' tool."
-                        )],
-                        isError=True
-                    )
-            # Re-raise other errors to be handled by outer try-catch
-            raise
+                    # Don't immediately fail - the stamp might be newly purchased
+                    # We'll let the upload attempt proceed and let the gateway handle validation
+                    stamp_validation_failed = True
+                    validation_error_msg = f"Could not validate stamp {stamp_id} (it may be newly purchased)"
+                else:
+                    # Other HTTP errors should be re-raised
+                    raise
+            else:
+                # Network errors should be re-raised
+                raise
 
         # Proceed with upload if stamp validation passed
         result = gateway_client.upload_data(data, stamp_id, content_type)
@@ -359,6 +364,10 @@ async def handle_upload_data(arguments: Dict[str, Any]) -> CallToolResult:
         response_text += f"Stamp ID: {stamp_id}\\n"
         response_text += f"Content Type: {content_type}\\n"
         response_text += f"Size: {len(data.encode('utf-8'))} bytes"
+
+        # Add validation warning if applicable
+        if stamp_validation_failed:
+            response_text += f"\\nNote: {validation_error_msg}"
 
         return CallToolResult(
             content=[TextContent(type="text", text=response_text)]
