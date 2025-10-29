@@ -24,8 +24,21 @@ Provides-Extra: dev
 Requires-Dist: pytest>=7.0.0; extra == "dev"
 Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
 Requires-Dist: pytest-mock>=3.10.0; extra == "dev"
+Requires-Dist: requests-mock>=1.10.0; extra == "dev"
+Requires-Dist: psutil>=5.9.0; extra == "dev"
+Requires-Dist: jsonschema>=4.0.0; extra == "dev"
 Requires-Dist: black>=23.0.0; extra == "dev"
 Requires-Dist: ruff>=0.1.0; extra == "dev"
+Provides-Extra: test
+Requires-Dist: pytest>=7.0.0; extra == "test"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "test"
+Requires-Dist: pytest-mock>=3.10.0; extra == "test"
+Requires-Dist: requests-mock>=1.10.0; extra == "test"
+Requires-Dist: psutil>=5.9.0; extra == "test"
+Requires-Dist: jsonschema>=4.0.0; extra == "test"
+Provides-Extra: security
+Requires-Dist: safety>=2.0.0; extra == "security"
+Requires-Dist: bandit>=1.7.0; extra == "security"
 
 # Swarm Provenance MCP
 

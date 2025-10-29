@@ -388,7 +388,11 @@ async def handle_health_check(arguments: Dict[str, Any]) -> CallToolResult:
         response_text = f"Health Check Results:\\n"
         response_text += f"Status: {result.get('status', 'unknown')}\\n"
         response_text += f"Gateway URL: {result.get('gateway_url', 'N/A')}\\n"
-        response_text += f"Response Time: {result.get('response_time_ms', 'N/A'):.2f}ms\\n"
+        response_time = result.get('response_time_ms', 'N/A')
+        if isinstance(response_time, (int, float)):
+            response_text += f"Response Time: {response_time:.2f}ms\\n"
+        else:
+            response_text += f"Response Time: {response_time}\\n"
 
         if result.get('gateway_response'):
             response_text += f"Gateway Response: {result['gateway_response']}"
