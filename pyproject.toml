@@ -37,8 +37,23 @@ dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-mock>=3.10.0",
+    "requests-mock>=1.10.0",
+    "psutil>=5.9.0",
+    "jsonschema>=4.0.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.10.0",
+    "requests-mock>=1.10.0",
+    "psutil>=5.9.0",
+    "jsonschema>=4.0.0",
+]
+security = [
+    "safety>=2.0.0",
+    "bandit>=1.7.0",
 ]
 
 [project.scripts]
@@ -63,5 +78,18 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short --strict-markers --strict-config"
 asyncio_mode = "auto"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests requiring external services",
+    "security: marks tests as security-focused",
+    "performance: marks tests as performance-focused",
+    "regression: marks tests as regression tests",
+    "smoke: marks tests as smoke tests for quick validation",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:pydantic.*",
+    "ignore::UserWarning:requests.*",
+    "ignore::pydantic.warnings.PydanticDeprecatedSince20",
+]
