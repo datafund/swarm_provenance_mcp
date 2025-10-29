@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "swarm-provenance": {
+      "command": "/path/to/your/venv/bin/python",
+      "args": [
+        "-m",
+        "swarm_provenance_mcp.server"
+      ],
+      "cwd": "/path/to/your/swarm_provenance_mcp",
+      "env": {
+        "SWARM_GATEWAY_URL": "http://localhost:8000"
+      }
+    }
+  }
+}

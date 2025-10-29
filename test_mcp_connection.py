@@ -122,12 +122,12 @@ def create_claude_desktop_config():
     config = {
         "mcpServers": {
             "swarm-provenance": {
-                "command": "python",
+                "command": "/path/to/your/venv/bin/python",
                 "args": [
                     "-m",
                     "swarm_provenance_mcp.server"
                 ],
-                "cwd": str(Path(__file__).parent),
+                "cwd": "/path/to/your/swarm_provenance_mcp",
                 "env": {
                     "SWARM_GATEWAY_URL": "http://localhost:8000"
                 }
@@ -141,10 +141,13 @@ def create_claude_desktop_config():
 
     print(f"\n📝 Claude Desktop config created at: {config_file}")
     print("To use with Claude Desktop:")
-    print("1. Copy this config to your Claude Desktop settings")
-    print("2. Make sure the swarm_connect gateway is running on port 8000")
-    print("3. Restart Claude Desktop")
-    print("4. The swarm-provenance tools will be available in Claude Desktop")
+    print("1. Update the paths in the config file:")
+    print("   - 'command': Point to your Python virtual environment")
+    print("   - 'cwd': Point to your swarm_provenance_mcp directory")
+    print("2. Copy the updated config to your Claude Desktop settings")
+    print("3. Make sure the swarm_connect gateway is running on port 8000")
+    print("4. Restart Claude Desktop")
+    print("5. The swarm-provenance tools will be available in Claude Desktop")
 
 if __name__ == "__main__":
     print("🚀 MCP Server Connection Test")
