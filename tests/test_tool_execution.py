@@ -51,29 +51,51 @@ class TestToolExecution:
                 "batchID": "test_batch_123",
                 "message": "Stamp extended successfully"
             }
+            mock_client.upload_data.return_value = {
+                "reference": "test_reference_abc123",
+                "message": "Upload successful"
+            }
+            mock_client.download_data.return_value = b'{"test": "data content"}'
+            mock_client.health_check.return_value = {
+                "status": "healthy",
+                "gateway_url": "http://localhost:8000",
+                "response_time_ms": 15.5,
+                "gateway_response": {"version": "1.0.0"}
+            }
 
             yield mock_client
 
-    async def get_call_tool_handler(self, server):
-        """Get the call_tool handler from the server."""
-        # Find the call_tool handler
-        for handler_name, handler in server._request_handlers.items():
-            if 'call' in handler_name and hasattr(handler, '__call__'):
-                return handler
-        return None
+    async def call_tool_directly(self, server, name: str, arguments: Dict[str, Any]):
+        """Call tool directly through the server's call_tool method."""
+        # Import the handler function directly
+        from swarm_provenance_mcp.server import (
+            handle_purchase_stamp, handle_get_stamp_status, handle_list_stamps,
+            handle_extend_stamp, handle_upload_data, handle_download_data, handle_health_check
+        )
+
+        handlers = {
+            "purchase_stamp": handle_purchase_stamp,
+            "get_stamp_status": handle_get_stamp_status,
+            "list_stamps": handle_list_stamps,
+            "extend_stamp": handle_extend_stamp,
+            "upload_data": handle_upload_data,
+            "download_data": handle_download_data,
+            "health_check": handle_health_check
+        }
+
+        if name in handlers:
+            return await handlers[name](arguments)
+        else:
+            from mcp.types import CallToolResult, TextContent
+            return CallToolResult(
+                content=[TextContent(type="text", text=f"Unknown tool: {name}")],
+                isError=True
+            )
 
     async def test_purchase_stamp_tool(self, server, mock_gateway_client):
         """Test purchase_stamp tool execution."""
-        handler = await self.get_call_tool_handler(server)
-        assert handler is not None, "call_tool handler not found"
-
         # Test with default parameters
-        request = CallToolRequest(
-            name="purchase_stamp",
-            arguments={}
-        )
-
-        result = await handler(request)
+        result = await self.call_tool_directly(server, "purchase_stamp", {})
 
         assert isinstance(result, CallToolResult)
         assert not result.isError
@@ -85,21 +107,16 @@ class TestToolExecution:
 
         # Test with custom parameters
         mock_gateway_client.reset_mock()
-        request_with_params = CallToolRequest(
-            name="purchase_stamp",
-            arguments={
+        result_with_params = await self.call_tool_directly(
+            server, "purchase_stamp", {
                 "amount": 5000000000,
                 "depth": 18,
                 "label": "test-stamp"
             }
         )
-
-        result = await handler(request_with_params)
-        assert not result.isError
+        assert not result_with_params.isError
         mock_gateway_client.purchase_stamp.assert_called_once_with(
-            amount=5000000000,
-            depth=18,
-            label="test-stamp"
+            5000000000, 18, "test-stamp"
         )
 
     async def test_get_stamp_status_tool(self, server, mock_gateway_client):
@@ -204,6 +221,27 @@ class TestToolExecution:
         assert not result.isError
         mock_gateway_client.download_data.assert_called_once_with("test_reference_abc123")
 
+    async def test_health_check_tool(self, server, mock_gateway_client):
+        """Test health_check tool execution."""
+        handler = await self.get_call_tool_handler(server)
+        assert handler is not None
+
+        request = CallToolRequest(
+            name="health_check",
+            arguments={}
+        )
+
+        result = await handler(request)
+
+        assert isinstance(result, CallToolResult)
+        assert not result.isError
+        mock_gateway_client.health_check.assert_called_once()
+
+        # Verify response contains expected information
+        content_text = result.content[0].text
+        assert "Health Check Results" in content_text
+        assert "Status: healthy" in content_text
+
     async def test_invalid_tool_name(self, server, mock_gateway_client):
         """Test handling of invalid tool names."""
         handler = await self.get_call_tool_handler(server)
@@ -267,7 +305,10 @@ class TestToolExecution:
             ("purchase_stamp", {}),
             ("get_stamp_status", {"stamp_id": "test_123"}),
             ("list_stamps", {}),
-            ("extend_stamp", {"stamp_id": "test_123", "amount": 1000000000})
+            ("extend_stamp", {"stamp_id": "test_123", "amount": 1000000000}),
+            ("upload_data", {"data": "test data", "stamp_id": "test_123"}),
+            ("download_data", {"reference": "test_reference_abc123"}),
+            ("health_check", {})
         ]
 
         for tool_name, arguments in tools_to_test:
@@ -305,7 +346,7 @@ class TestToolParameterValidation:
 
     async def get_call_tool_handler(self, server):
         """Get the call_tool handler from the server."""
-        for handler_name, handler in server._request_handlers.items():
+        for handler_name, handler in server.request_handlers.items():
             if 'call' in handler_name and hasattr(handler, '__call__'):
                 return handler
         return None

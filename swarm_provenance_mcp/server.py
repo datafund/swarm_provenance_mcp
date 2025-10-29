@@ -102,6 +102,52 @@ def create_server() -> Server:
                     "required": ["stamp_id", "amount"]
                 }
             ),
+            Tool(
+                name="upload_data",
+                description="Upload data to the Swarm network. Supports files up to 4KB. Example SWIP-compliant JSON schema: {\"content_hash\": \"sha256:abc123...\", \"provenance_standard\": \"DaTA v1.0.0\", \"encryption\": \"none\", \"data\": {\"your_data\": \"here\"}, \"stamp_id\": \"0xfe2f...\"}",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "data": {
+                            "type": "string",
+                            "description": "Data content to upload (max 4096 bytes)"
+                        },
+                        "stamp_id": {
+                            "type": "string",
+                            "description": "Postage stamp ID to use for upload"
+                        },
+                        "content_type": {
+                            "type": "string",
+                            "description": "MIME type of the content",
+                            "default": "application/json"
+                        }
+                    },
+                    "required": ["data", "stamp_id"]
+                }
+            ),
+            Tool(
+                name="download_data",
+                description="Download data from the Swarm network using a reference hash",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "reference": {
+                            "type": "string",
+                            "description": "Swarm reference hash of the data to download"
+                        }
+                    },
+                    "required": ["reference"]
+                }
+            ),
+            Tool(
+                name="health_check",
+                description="Check gateway and Swarm network connectivity status",
+                inputSchema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            ),
         ]
 
     @server.call_tool()
@@ -116,6 +162,12 @@ def create_server() -> Server:
                 return await handle_list_stamps(arguments)
             elif name == "extend_stamp":
                 return await handle_extend_stamp(arguments)
+            elif name == "upload_data":
+                return await handle_upload_data(arguments)
+            elif name == "download_data":
+                return await handle_download_data(arguments)
+            elif name == "health_check":
+                return await handle_health_check(arguments)
             else:
                 return CallToolResult(
                     content=[
@@ -263,6 +315,95 @@ async def handle_extend_stamp(arguments: Dict[str, Any]) -> CallToolResult:
         )
 
 
+async def handle_upload_data(arguments: Dict[str, Any]) -> CallToolResult:
+    """Handle data upload requests."""
+    try:
+        data = arguments["data"]
+        stamp_id = arguments["stamp_id"]
+        content_type = arguments.get("content_type", "application/json")
+
+        result = gateway_client.upload_data(data, stamp_id, content_type)
+
+        response_text = f"Successfully uploaded data!\\n"
+        response_text += f"Reference: {result['reference']}\\n"
+        response_text += f"Stamp ID: {stamp_id}\\n"
+        response_text += f"Content Type: {content_type}\\n"
+        response_text += f"Size: {len(data.encode('utf-8'))} bytes"
+
+        return CallToolResult(
+            content=[TextContent(type="text", text=response_text)]
+        )
+
+    except ValueError as e:
+        error_msg = f"Upload validation error: {str(e)}"
+        logger.error(error_msg)
+        return CallToolResult(
+            content=[TextContent(type="text", text=error_msg)],
+            isError=True
+        )
+    except RequestException as e:
+        error_msg = f"Failed to upload data: {str(e)}"
+        logger.error(error_msg)
+        return CallToolResult(
+            content=[TextContent(type="text", text=error_msg)],
+            isError=True
+        )
+
+
+async def handle_download_data(arguments: Dict[str, Any]) -> CallToolResult:
+    """Handle data download requests."""
+    try:
+        reference = arguments["reference"]
+
+        result_bytes = gateway_client.download_data(reference)
+
+        # Try to decode as text, assume JSON content
+        try:
+            result_text = result_bytes.decode('utf-8')
+            response_text = f"Successfully downloaded data from {reference}:\\n\\n{result_text}"
+        except UnicodeDecodeError:
+            # If not valid UTF-8, show as binary data info
+            response_text = f"Successfully downloaded binary data from {reference}\\n"
+            response_text += f"Size: {len(result_bytes)} bytes\\n"
+            response_text += f"Note: Binary data cannot be displayed as text"
+
+        return CallToolResult(
+            content=[TextContent(type="text", text=response_text)]
+        )
+
+    except RequestException as e:
+        error_msg = f"Failed to download data: {str(e)}"
+        logger.error(error_msg)
+        return CallToolResult(
+            content=[TextContent(type="text", text=error_msg)],
+            isError=True
+        )
+
+
+async def handle_health_check(arguments: Dict[str, Any]) -> CallToolResult:
+    """Handle health check requests."""
+    try:
+        result = gateway_client.health_check()
+
+        response_text = f"Health Check Results:\\n"
+        response_text += f"Status: {result.get('status', 'unknown')}\\n"
+        response_text += f"Gateway URL: {result.get('gateway_url', 'N/A')}\\n"
+        response_text += f"Response Time: {result.get('response_time_ms', 'N/A'):.2f}ms\\n"
+
+        if result.get('gateway_response'):
+            response_text += f"Gateway Response: {result['gateway_response']}"
+
+        return CallToolResult(
+            content=[TextContent(type="text", text=response_text)]
+        )
+
+    except RequestException as e:
+        error_msg = f"Health check failed: {str(e)}"
+        logger.error(error_msg)
+        return CallToolResult(
+            content=[TextContent(type="text", text=error_msg)],
+            isError=True
+        )
 
 
 async def main():
@@ -284,6 +425,7 @@ async def main():
                 InitializationOptions(
                     server_name=settings.mcp_server_name,
                     server_version=settings.mcp_server_version,
+                    capabilities={}
                 )
             )
     except KeyboardInterrupt:

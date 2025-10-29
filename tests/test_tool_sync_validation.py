@@ -114,7 +114,7 @@ class TestToolSynchronization:
 
         expected_tools = {
             'purchase_stamp', 'get_stamp_status', 'list_stamps',
-            'extend_stamp'
+            'extend_stamp', 'upload_data', 'download_data', 'health_check'
         }
 
         found_tools = set(tools.keys())
@@ -128,7 +128,7 @@ class TestToolSynchronization:
 
         expected_methods = {
             'purchase_stamp', 'get_stamp_details', 'list_stamps',
-            'extend_stamp'
+            'extend_stamp', 'upload_data', 'download_data', 'health_check'
         }
 
         missing_methods = expected_methods - methods
@@ -158,7 +158,7 @@ class TestToolSynchronization:
 
         # Get the list_tools handler
         list_tools_handler = None
-        for handler_name, handler in server._request_handlers.items():
+        for handler_name, handler in server.request_handlers.items():
             if 'list_tools' in handler_name:
                 list_tools_handler = handler
                 break
@@ -171,7 +171,7 @@ class TestToolSynchronization:
 
         expected_tools = {
             'purchase_stamp', 'get_stamp_status', 'list_stamps',
-            'extend_stamp'
+            'extend_stamp', 'upload_data', 'download_data', 'health_check'
         }
 
         missing_tools = expected_tools - tool_names
@@ -183,7 +183,7 @@ class TestToolSynchronization:
 
         expected_methods = {
             'purchase_stamp', 'get_stamp_details', 'list_stamps',
-            'extend_stamp'
+            'extend_stamp', 'upload_data', 'download_data', 'health_check'
         }
 
         actual_methods = {name for name, _ in inspect.getmembers(client, inspect.ismethod)
@@ -269,7 +269,7 @@ class TestFutureProofing:
 
         # Get tools
         list_tools_handler = None
-        for handler_name, handler in server._request_handlers.items():
+        for handler_name, handler in server.request_handlers.items():
             if 'list_tools' in handler_name:
                 list_tools_handler = handler
                 break

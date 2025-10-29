@@ -107,6 +107,81 @@ class SwarmGatewayClient:
         return response.json()
 
 
+    def upload_data(self, data: str, stamp_id: str, content_type: str = "application/json") -> Dict[str, Any]:
+        """Upload data to Swarm network.
+
+        Args:
+            data: Data content as string (max 4096 bytes)
+            stamp_id: Postage stamp ID to use for upload
+            content_type: MIME type of the content (default: application/json)
+
+        Returns:
+            Upload response with reference hash
+
+        Raises:
+            RequestException: If the request fails
+            ValueError: If data exceeds size limit
+        """
+        # Check size limit (4KB = 4096 bytes)
+        data_bytes = data.encode('utf-8')
+        if len(data_bytes) > 4096:
+            raise ValueError(f"Data size {len(data_bytes)} bytes exceeds 4KB limit (4096 bytes). Larger uploads are not currently supported.")
+
+        url = f"{self.base_url}/api/v1/data/"
+
+        # Prepare multipart form data
+        files = {
+            'file': ('data', data_bytes, content_type)
+        }
+
+        params = {
+            'stamp_id': stamp_id,
+            'content_type': content_type
+        }
+
+        response = self.session.post(url, files=files, params=params, timeout=30)
+        response.raise_for_status()
+        return response.json()
+
+    def download_data(self, reference: str) -> bytes:
+        """Download data from Swarm network.
+
+        Args:
+            reference: Swarm reference hash of the data
+
+        Returns:
+            Raw data bytes
+
+        Raises:
+            RequestException: If the request fails
+        """
+        url = f"{self.base_url}/api/v1/data/{reference}"
+        response = self.session.get(url, timeout=30)
+        response.raise_for_status()
+        return response.content
+
+    def health_check(self) -> Dict[str, Any]:
+        """Check gateway and Swarm connectivity.
+
+        Returns:
+            Health status information
+
+        Raises:
+            RequestException: If the request fails
+        """
+        url = f"{self.base_url}/"
+        response = self.session.get(url, timeout=10)
+        response.raise_for_status()
+
+        # Create meaningful health status
+        health_data = response.json() if response.content else {}
+        return {
+            "status": "healthy",
+            "gateway_url": self.base_url,
+            "response_time_ms": response.elapsed.total_seconds() * 1000,
+            "gateway_response": health_data
+        }
+
     def close(self):
         """Close the HTTP session."""
         self.session.close()

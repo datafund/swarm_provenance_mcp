@@ -58,7 +58,10 @@ class TestToolDefinitions:
             'purchase_stamp',
             'get_stamp_status',
             'list_stamps',
-            'extend_stamp'
+            'extend_stamp',
+            'upload_data',
+            'download_data',
+            'health_check'
         }
 
         actual_tools = {tool.name for tool in tool_list}
@@ -115,7 +118,10 @@ class TestToolDefinitions:
             'purchase_stamp': [],  # All parameters have defaults
             'get_stamp_status': ['stamp_id'],
             'list_stamps': [],  # No parameters
-            'extend_stamp': ['stamp_id', 'amount']
+            'extend_stamp': ['stamp_id', 'amount'],
+            'upload_data': ['data', 'stamp_id'],
+            'download_data': ['reference'],
+            'health_check': []
         }
 
         for tool in tool_list:
@@ -136,7 +142,10 @@ class TestToolDefinitions:
             'purchase_stamp': 'purchase_stamp',
             'get_stamp_details': 'get_stamp_status',
             'list_stamps': 'list_stamps',
-            'extend_stamp': 'extend_stamp'
+            'extend_stamp': 'extend_stamp',
+            'upload_data': 'upload_data',
+            'download_data': 'download_data',
+            'health_check': 'health_check'
         }
 
         for method_name in method_to_tool_mapping:
@@ -155,7 +164,7 @@ class TestToolDefinitions:
         assert len(handlers) > 0, "No request handlers found in server"
 
         # This is a basic check - the server should have request handling capability
-        assert hasattr(server, 'request_handlers') or hasattr(server, '_request_handlers'), \
+        assert hasattr(server, 'request_handlers'), \
             "Server missing request handler infrastructure"
 
     async def test_error_handling_consistency(self, tool_list):
@@ -221,7 +230,7 @@ class TestToolImplementationSync:
         client = SwarmGatewayClient()
         critical_methods = [
             'purchase_stamp', 'get_stamp_details', 'list_stamps',
-            'extend_stamp'
+            'extend_stamp', 'upload_data', 'download_data', 'health_check'
         ]
 
         for method_name in critical_methods:
