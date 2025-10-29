@@ -1,0 +1,243 @@
+# Swarm Provenance MCP
+
+A Model Context Protocol (MCP) server for managing Swarm postage stamps through a centralized FastAPI gateway.
+
+## Overview
+
+This MCP server provides tools for AI agents to interact with Swarm postage stamps, including purchasing, extending, and monitoring stamps. It acts as a bridge between AI agents and the `swarm_connect` FastAPI gateway.
+
+## Features
+
+- **Purchase Stamps**: Create new postage stamps with configurable amount and depth
+- **Stamp Status**: Get detailed information about specific stamps
+- **List Stamps**: View all available postage stamps
+- **Extend Stamps**: Add additional funds to existing stamps
+- **Utilization Monitoring**: Check stamp usage statistics
+
+## Installation
+
+### Prerequisites
+
+- Python 3.8 or higher
+- Access to a running `swarm_connect` gateway service
+
+### Setup
+
+1. Clone the repository:
+```bash
+cd /path/to/Provenance_Projects/swarm_provenance_mcp
+```
+
+2. Create and activate a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install the package:
+```bash
+pip install -e .
+```
+
+4. Configure environment variables:
+```bash
+cp .env.example .env
+# Edit .env to configure your gateway URL and defaults
+```
+
+## Configuration
+
+Environment variables (set in `.env` file):
+
+- `SWARM_GATEWAY_URL`: URL of the swarm_connect FastAPI gateway (default: `http://localhost:8001`)
+- `DEFAULT_STAMP_AMOUNT`: Default amount for new stamps in wei (default: `1000000000`)
+- `DEFAULT_STAMP_DEPTH`: Default depth for new stamps (default: `17`)
+
+## Usage
+
+### Running the MCP Server
+
+```bash
+swarm-provenance-mcp
+```
+
+### Available Tools
+
+#### `purchase_stamp`
+Purchase a new postage stamp.
+
+**Parameters:**
+- `amount` (int): Amount in wei (optional, uses default if not provided)
+- `depth` (int): Stamp depth (optional, uses default if not provided)
+- `label` (string): Optional label for the stamp
+
+**Example:**
+```json
+{
+  "name": "purchase_stamp",
+  "arguments": {
+    "amount": 1000000000,
+    "depth": 17,
+    "label": "my-test-stamp"
+  }
+}
+```
+
+#### `get_stamp_status`
+Get detailed information about a specific stamp.
+
+**Parameters:**
+- `stamp_id` (string): The batch ID of the stamp
+
+**Example:**
+```json
+{
+  "name": "get_stamp_status",
+  "arguments": {
+    "stamp_id": "000de42079daebd58347bb38ce05bdc477701d93651d3bba318a9aee3fbd786a"
+  }
+}
+```
+
+#### `list_stamps`
+List all available postage stamps.
+
+**Parameters:** None
+
+**Example:**
+```json
+{
+  "name": "list_stamps",
+  "arguments": {}
+}
+```
+
+#### `extend_stamp`
+Extend an existing stamp with additional funds.
+
+**Parameters:**
+- `stamp_id` (string): The batch ID of the stamp to extend
+- `amount` (int): Additional amount to add in wei
+
+**Example:**
+```json
+{
+  "name": "extend_stamp",
+  "arguments": {
+    "stamp_id": "000de42079daebd58347bb38ce05bdc477701d93651d3bba318a9aee3fbd786a",
+    "amount": 500000000
+  }
+}
+```
+
+#### `get_stamp_utilization`
+Get utilization percentage for a specific stamp.
+
+**Parameters:**
+- `stamp_id` (string): The batch ID of the stamp
+
+**Example:**
+```json
+{
+  "name": "get_stamp_utilization",
+  "arguments": {
+    "stamp_id": "000de42079daebd58347bb38ce05bdc477701d93651d3bba318a9aee3fbd786a"
+  }
+}
+```
+
+## Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   AI Agents     │◄──►│  MCP Server     │◄──►│ swarm_connect   │
+│                 │    │                 │    │   Gateway       │
+│ • Claude        │    │ • Tool handlers │    │                 │
+│ • Other LLMs    │    │ • Gateway client│    │ • Purchase API  │
+│ • Custom agents │    │ • Error handling│    │ • Status API    │
+└─────────────────┘    └─────────────────┘    │ • Extension API │
+                                              └─────────┬───────┘
+                                                        │
+                                              ┌─────────▼───────┐
+                                              │  Swarm Network  │
+                                              │   (Bee Node)    │
+                                              └─────────────────┘
+```
+
+### Components
+
+- **MCP Server**: Exposes tools via the Model Context Protocol
+- **Gateway Client**: HTTP client for communicating with swarm_connect
+- **Configuration**: Environment-based settings management
+- **Error Handling**: Comprehensive error handling and logging
+
+## Development
+
+### Testing
+
+```bash
+# Install development dependencies
+pip install -e .[dev]
+
+# Run tests
+pytest
+
+# Run with coverage
+pytest --cov=swarm_provenance_mcp
+```
+
+### Code Quality
+
+```bash
+# Format code
+black swarm_provenance_mcp/
+
+# Lint code
+ruff check swarm_provenance_mcp/
+```
+
+## Dependencies
+
+- **Core Dependencies**:
+  - `mcp>=1.0.0`: Model Context Protocol framework
+  - `requests>=2.31.0`: HTTP client for gateway communication
+  - `pydantic>=2.0.0`: Data validation and settings
+  - `python-dotenv>=1.0.0`: Environment configuration
+
+- **Development Dependencies**:
+  - `pytest`: Testing framework
+  - `pytest-asyncio`: Async testing support
+  - `pytest-mock`: Mocking utilities
+  - `black`: Code formatting
+  - `ruff`: Linting
+
+## Integration with AI Agents
+
+This MCP server is designed to work with AI agents that support the Model Context Protocol. Agents can use the provided tools to:
+
+1. **Manage stamp inventory**: Purchase and extend stamps as needed
+2. **Monitor usage**: Check stamp status and utilization
+3. **Optimize costs**: List stamps to find the most suitable ones for tasks
+4. **Automate workflows**: Integrate stamp management into larger AI workflows
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Connection errors**: Ensure the swarm_connect gateway is running and accessible
+2. **Authentication errors**: Check that the gateway doesn't require authentication
+3. **Invalid stamp IDs**: Verify stamp IDs are valid batch IDs from the Swarm network
+4. **Timeout errors**: Increase timeout values if operations are taking too long
+
+### Logging
+
+The server logs important events and errors. To increase logging verbosity:
+
+```python
+import logging
+logging.getLogger("swarm_provenance_mcp").setLevel(logging.DEBUG)
+```
+
+## License
+
+MIT License - see LICENSE file for details.
