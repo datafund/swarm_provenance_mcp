@@ -54,11 +54,10 @@ def create_server() -> Server:
                         },
                         "label": {
                             "type": "string",
-                            "description": "Optional label for the stamp",
-                            "required": False
+                            "description": "Optional label for the stamp"
                         }
                     },
-                    "required": ["amount", "depth"]
+                    "required": []
                 }
             ),
             Tool(

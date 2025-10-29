@@ -32,7 +32,7 @@ class TestMCPToolSchemaCompliance:
                     "depth": {"type": "integer"},
                     "label": {"type": "string"}
                 },
-                "required": ["amount", "depth"]
+                "required": []
             },
             "upload_data": {
                 "type": "object",

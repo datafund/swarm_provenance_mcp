@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # Default stamp parameters
     default_stamp_amount: int = Field(
-        default=1000000000,
+        default=2000000000,
         env="DEFAULT_STAMP_AMOUNT",
         description="Default amount for new postage stamps (in wei)"
     )

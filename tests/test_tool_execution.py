@@ -172,7 +172,7 @@ class TestToolExecution:
             name="extend_stamp",
             arguments={
                 "stamp_id": "test_batch_123",
-                "amount": 1000000000
+                "amount": 2000000000
             }
         )
 
@@ -181,7 +181,7 @@ class TestToolExecution:
         assert isinstance(result, CallToolResult)
         assert not result.isError
         mock_gateway_client.extend_stamp.assert_called_once_with(
-            "test_batch_123", 1000000000
+            "test_batch_123", 2000000000
         )
 
 
@@ -305,7 +305,7 @@ class TestToolExecution:
             ("purchase_stamp", {}),
             ("get_stamp_status", {"stamp_id": "test_123"}),
             ("list_stamps", {}),
-            ("extend_stamp", {"stamp_id": "test_123", "amount": 1000000000}),
+            ("extend_stamp", {"stamp_id": "test_123", "amount": 2000000000}),
             ("upload_data", {"data": "test data", "stamp_id": "test_123"}),
             ("download_data", {"reference": "test_reference_abc123"}),
             ("health_check", {})

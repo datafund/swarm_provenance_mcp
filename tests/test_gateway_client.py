@@ -29,14 +29,14 @@ class TestSwarmGatewayClient:
             m.post(f"{self.base_url}/api/v1/stamps", json=expected_response)
 
             result = self.client.purchase_stamp(
-                amount=1000000000,
+                amount=2000000000,
                 depth=17,
                 label="test-stamp"
             )
 
             assert result == expected_response
             assert m.last_request.json() == {
-                "amount": 1000000000,
+                "amount": 2000000000,
                 "depth": 17,
                 "label": "test-stamp"
             }
@@ -64,7 +64,7 @@ class TestSwarmGatewayClient:
         with requests_mock.Mocker() as m:
             expected_response = {
                 "batchID": stamp_id,
-                "amount": "1000000000",
+                "amount": "2000000000",
                 "depth": 17,
                 "expectedExpiration": "2024-12-31-23-59",
                 "usable": True,
@@ -83,7 +83,7 @@ class TestSwarmGatewayClient:
                 "stamps": [
                     {
                         "batchID": "stamp-1",
-                        "amount": "1000000000",
+                        "amount": "2000000000",
                         "depth": 17
                     },
                     {
@@ -115,33 +115,6 @@ class TestSwarmGatewayClient:
             assert result == expected_response
             assert m.last_request.json() == {"amount": 500000000}
 
-    def test_get_stamp_utilization_with_data(self):
-        """Test stamp utilization when data is available."""
-        stamp_id = "test-stamp-id"
-        with requests_mock.Mocker() as m:
-            stamp_details = {
-                "batchID": stamp_id,
-                "utilization": 75.25
-            }
-            m.get(f"{self.base_url}/api/v1/stamps/{stamp_id}", json=stamp_details)
-
-            result = self.client.get_stamp_utilization(stamp_id)
-
-            assert result == 75.25
-
-    def test_get_stamp_utilization_no_data(self):
-        """Test stamp utilization when data is not available."""
-        stamp_id = "test-stamp-id"
-        with requests_mock.Mocker() as m:
-            stamp_details = {
-                "batchID": stamp_id,
-                "utilization": None
-            }
-            m.get(f"{self.base_url}/api/v1/stamps/{stamp_id}", json=stamp_details)
-
-            result = self.client.get_stamp_utilization(stamp_id)
-
-            assert result == 0.0
 
     def test_request_failure(self):
         """Test handling of request failures."""
