@@ -137,7 +137,7 @@ def create_server() -> Server:
         return [
             Tool(
                 name="purchase_stamp",
-                description="Purchase a new Swarm postage stamp. Returns a 64-character hexadecimal batch ID (without 0x prefix) that can be used for uploading data to Swarm.",
+                description="Purchase a new Swarm postage stamp. Returns a 64-character hexadecimal batch ID (without 0x prefix) that can be used for uploading data to Swarm. AGENT GUIDANCE: Celebrate the success and provide next steps. Emphasize that it takes ~1 minute for stamp info to be available on blockchain. Suggest using it for only one file upload (max 4KB), then purchase another stamp for the next upload.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -165,7 +165,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="get_stamp_status",
-                description="Get detailed information about a specific stamp including TTL, expiration time, utilization, and usability status. Essential for checking if a stamp is still valid for uploads.",
+                description="Get detailed information about a specific stamp including TTL, expiration time, utilization, and usability status. Essential for checking if a stamp is still valid for uploads. AGENT GUIDANCE: Present results with expiration time and usability status highlighted. If stamp is near expiration or unusable, emphasize this to the user.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -180,7 +180,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="list_stamps",
-                description="List all available postage stamps with their details including batch IDs, amounts, depths, TTL, expiration times, and utilization. Shows both local stamps (owned by this node) and network stamps.",
+                description="List all available postage stamps with their details including batch IDs, amounts, depths, TTL, expiration times, and utilization. Shows both local stamps (owned by this node) and network stamps. AGENT GUIDANCE: Present as a table with columns: Batch ID, Expiration Time, Status. Do not categorize or give recommendations. Note that this might return a long list and may be removed in future versions.",
                 inputSchema={
                     "type": "object",
                     "properties": {},
@@ -189,7 +189,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="extend_stamp",
-                description="Extend an existing stamp with additional funds to increase its TTL and allow more data uploads. The stamp must be owned by this node.",
+                description="Extend an existing stamp with additional funds to increase its TTL and allow more data uploads. The stamp must be owned by this node. AGENT GUIDANCE: Show before/after comparison if possible. Note that extension info takes time to propagate through blockchain - suggest user to check stamp status again in ~1 minute to see new expiration time.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -209,7 +209,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="upload_data",
-                description="Upload data to the Swarm network using a valid postage stamp. Supports files up to 4KB. Validates that the stamp ID exists and is usable before upload. Returns a Swarm reference hash for retrieving the data.",
+                description="Upload data to the Swarm network using a valid postage stamp. Supports files up to 4KB. Validates that the stamp ID exists and is usable before upload. Returns a Swarm reference hash for retrieving the data. AGENT GUIDANCE: Celebrate successful upload and provide retrieval instructions. Show how to copy the reference hash for later data retrieval.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -234,7 +234,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="download_data",
-                description="Download data from the Swarm network using a reference hash. Returns the raw data content. For binary data, size and type information is provided instead of content.",
+                description="Download data from the Swarm network using a reference hash. Returns the raw data content. For binary data, size and type information is provided instead of content. AGENT GUIDANCE: Present content appropriately - for JSON data, show field names and truncate long fields to one line. For binary data, explain what it is and how to save it.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -249,7 +249,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="health_check",
-                description="Check gateway and Swarm network connectivity status. Returns gateway URL, response time, and connection status. Useful for troubleshooting connectivity issues.",
+                description="Check gateway and Swarm network connectivity status. Returns gateway URL, response time, and connection status. Useful for troubleshooting connectivity issues. AGENT GUIDANCE: Show simple 'all good' vs 'issues detected' status. If problems found, suggest checking the gateway server at the URL provided.",
                 inputSchema={
                     "type": "object",
                     "properties": {},
@@ -320,14 +320,16 @@ async def handle_purchase_stamp(arguments: Dict[str, Any]) -> CallToolResult:
 
         result = gateway_client.purchase_stamp(amount, depth, label)
 
-        response_text = f"Successfully purchased stamp!\n"
-        response_text += f"Batch ID: {result['batchID']}\n"
-        response_text += f"Amount: {amount:,} wei\n"
-        response_text += f"Depth: {depth}\n"
+        response_text = f"🎉 Stamp purchased successfully!\n\n"
+        response_text += f"📋 Your Stamp Details:\n"
+        response_text += f"   Batch ID: `{result['batchID']}`\n"
+        response_text += f"   Amount: {amount:,} wei\n"
+        response_text += f"   Depth: {depth}\n"
         if label:
-            response_text += f"Label: {label}\n"
-        response_text += f"Message: {result['message']}\n\n"
-        response_text += f"Note: Use this Batch ID (without 0x prefix) for uploading data to Swarm."
+            response_text += f"   Label: {label}\n"
+        response_text += f"\n⏱️  Important: Stamp info takes ~1 minute to propagate through the blockchain.\n"
+        response_text += f"📤 Next steps: Use this stamp for ONE file upload (max 4KB), then purchase another stamp for additional uploads.\n"
+        response_text += f"💡 Copy the Batch ID above (without 0x prefix) for your upload."
 
         return CallToolResult(
             content=[TextContent(type="text", text=response_text)]
@@ -423,18 +425,34 @@ async def handle_list_stamps(arguments: Dict[str, Any]) -> CallToolResult:
         total_count = result.get("total_count", 0)
 
         if total_count == 0:
-            response_text = "No stamps found."
+            response_text = "📭 No stamps found.\n\n💡 Use the 'purchase_stamp' tool to create your first stamp!"
         else:
-            response_text = f"Found {total_count} stamp(s):\n\n"
-            for i, stamp in enumerate(stamps, 1):
-                response_text += f"{i}. Batch ID: {stamp.get('batchID', 'N/A')}\n"
-                response_text += f"   Amount: {stamp.get('amount', 'N/A')}\n"
-                response_text += f"   Depth: {stamp.get('depth', 'N/A')}\n"
-                response_text += f"   Expiration: {stamp.get('expectedExpiration', 'N/A')}\n"
-                response_text += f"   Usable: {stamp.get('usable', 'N/A')}\n"
-                if stamp.get('label'):
-                    response_text += f"   Label: {stamp['label']}\n"
-                response_text += "\n"
+            response_text = f"📋 Found {total_count} stamp(s):\n\n"
+            response_text += f"PRESENTATION_HINT: Format as table with columns: Batch ID | Expiration Time | Status\n\n"
+
+            # Header for table format
+            response_text += f"{'Batch ID':<20} | {'Expiration':<20} | {'Status':<10}\n"
+            response_text += f"{'-'*20} | {'-'*20} | {'-'*10}\n"
+
+            for stamp in stamps:
+                batch_id = stamp.get('batchID', 'N/A')
+                expiration = stamp.get('expectedExpiration', 'N/A')
+                usable = stamp.get('usable', 'N/A')
+
+                # Truncate batch ID for table format
+                display_id = batch_id[:16] + "..." if len(str(batch_id)) > 19 else batch_id
+
+                # Status with emoji
+                if usable is True:
+                    status = "✅ Usable"
+                elif usable is False:
+                    status = "❌ Expired"
+                else:
+                    status = "❓ Unknown"
+
+                response_text += f"{display_id:<20} | {str(expiration):<20} | {status:<10}\n"
+
+            response_text += f"\n⚠️  Note: This tool may be removed in future versions due to potentially long lists."
 
         return CallToolResult(
             content=[TextContent(type="text", text=response_text)]
@@ -461,10 +479,13 @@ async def handle_extend_stamp(arguments: Dict[str, Any]) -> CallToolResult:
 
         result = gateway_client.extend_stamp(clean_stamp_id, amount)
 
-        response_text = f"Successfully extended stamp!\n"
-        response_text += f"Batch ID: {result['batchID']}\n"
-        response_text += f"Additional Amount: {amount:,} wei\n"
-        response_text += f"Message: {result['message']}"
+        response_text = f"✅ Stamp extended successfully!\n\n"
+        response_text += f"📋 Extension Details:\n"
+        response_text += f"   Batch ID: `{result['batchID']}`\n"
+        response_text += f"   Additional Amount: {amount:,} wei\n"
+        response_text += f"   Status: {result['message']}\n\n"
+        response_text += f"⏱️  Important: Extension info takes ~1 minute to propagate through the blockchain.\n"
+        response_text += f"🔍 Check stamp status again in about 1 minute to see the new expiration time."
 
         return CallToolResult(
             content=[TextContent(type="text", text=response_text)]
@@ -535,11 +556,14 @@ async def handle_upload_data(arguments: Dict[str, Any]) -> CallToolResult:
         # Proceed with upload if stamp validation passed
         result = gateway_client.upload_data(data, clean_stamp_id, content_type)
 
-        response_text = f"Successfully uploaded data!\n"
-        response_text += f"Reference: {result['reference']}\n"
-        response_text += f"Stamp ID: {clean_stamp_id}\n"
-        response_text += f"Content Type: {content_type}\n"
-        response_text += f"Size: {len(data.encode('utf-8')):,} bytes"
+        response_text = f"🎉 Data uploaded successfully to Swarm!\n\n"
+        response_text += f"📄 Upload Details:\n"
+        response_text += f"   Size: {len(data.encode('utf-8')):,} bytes\n"
+        response_text += f"   Content Type: {content_type}\n"
+        response_text += f"   Stamp Used: `{clean_stamp_id}`\n\n"
+        response_text += f"🔗 Retrieval Information:\n"
+        response_text += f"   Reference Hash: `{result['reference']}`\n"
+        response_text += f"   💡 Copy this reference hash to download your data later using the 'download_data' tool."
 
         # Add validation warning if applicable
         if stamp_validation_failed:
@@ -575,15 +599,44 @@ async def handle_download_data(arguments: Dict[str, Any]) -> CallToolResult:
 
         result_bytes = gateway_client.download_data(clean_reference)
 
-        # Try to decode as text, assume JSON content
+        # Try to decode as text, handle JSON appropriately
         try:
             result_text = result_bytes.decode('utf-8')
-            response_text = f"Successfully downloaded data from {clean_reference}:\n\n{result_text}"
+
+            # Try to parse as JSON for better presentation
+            try:
+                import json
+                parsed_json = json.loads(result_text)
+
+                response_text = f"📥 Successfully downloaded JSON data from `{clean_reference}`:\n\n"
+                response_text += f"PRESENTATION_HINT: Show field names and truncate long fields to one line\n\n"
+
+                # Show JSON structure with field truncation
+                response_text += "📋 JSON Structure:\n"
+                for key, value in parsed_json.items():
+                    if isinstance(value, str) and len(value) > 50:
+                        truncated_value = value[:47] + "..."
+                        response_text += f"   {key}: \"{truncated_value}\"\n"
+                    elif isinstance(value, dict):
+                        response_text += f"   {key}: {{...}} (object with {len(value)} fields)\n"
+                    elif isinstance(value, list):
+                        response_text += f"   {key}: [...] (array with {len(value)} items)\n"
+                    else:
+                        response_text += f"   {key}: {value}\n"
+
+                response_text += f"\n💾 Size: {len(result_bytes):,} bytes"
+
+            except json.JSONDecodeError:
+                # Not JSON, show as text
+                response_text = f"📥 Successfully downloaded text data from `{clean_reference}`:\n\n{result_text}"
+
         except UnicodeDecodeError:
             # If not valid UTF-8, show as binary data info
-            response_text = f"Successfully downloaded binary data from {clean_reference}\n"
-            response_text += f"Size: {len(result_bytes):,} bytes\n"
-            response_text += f"Note: Binary data cannot be displayed as text"
+            response_text = f"📥 Successfully downloaded binary data from `{clean_reference}`\n\n"
+            response_text += f"📊 File Information:\n"
+            response_text += f"   Size: {len(result_bytes):,} bytes\n"
+            response_text += f"   Type: Binary data\n\n"
+            response_text += f"💡 This appears to be binary data (images, documents, etc.). To save it, you would need to write the bytes to a file."
 
         return CallToolResult(
             content=[TextContent(type="text", text=response_text)]
@@ -610,25 +663,40 @@ async def handle_health_check(arguments: Dict[str, Any]) -> CallToolResult:
     try:
         result = gateway_client.health_check()
 
-        response_text = f"Health Check Results:\\n"
-        response_text += f"Status: {result.get('status', 'unknown')}\\n"
-        response_text += f"Gateway URL: {result.get('gateway_url', 'N/A')}\\n"
+        status = result.get('status', 'unknown')
+        gateway_url = result.get('gateway_url', 'N/A')
         response_time = result.get('response_time_ms', 'N/A')
-        if isinstance(response_time, (int, float)):
-            response_text += f"Response Time: {response_time:.2f}ms\\n"
+
+        if status == 'healthy':
+            response_text = f"✅ All systems operational!\n\n"
+            response_text += f"🌐 Gateway: {gateway_url}\n"
+            if isinstance(response_time, (int, float)):
+                response_text += f"⚡ Response Time: {response_time:.0f}ms\n"
         else:
-            response_text += f"Response Time: {response_time}\\n"
+            response_text = f"⚠️  Issues detected!\n\n"
+            response_text += f"Status: {status}\n"
+            response_text += f"Gateway: {gateway_url}\n"
+            if isinstance(response_time, (int, float)):
+                response_text += f"Response Time: {response_time:.0f}ms\n"
 
         if result.get('gateway_response'):
-            response_text += f"Gateway Response: {result['gateway_response']}"
+            response_text += f"\n📋 Gateway Response: {result['gateway_response']}"
 
         return CallToolResult(
             content=[TextContent(type="text", text=response_text)]
         )
 
     except RequestException as e:
-        error_msg = f"Health check failed: {str(e)}"
-        logger.error(error_msg)
+        gateway_url = settings.swarm_gateway_url
+        error_msg = f"❌ Connection failed!\n\n"
+        error_msg += f"Error: {str(e)}\n"
+        error_msg += f"Gateway: {gateway_url}\n\n"
+        error_msg += f"🔧 Troubleshooting:\n"
+        error_msg += f"   • Check if the gateway server is running\n"
+        error_msg += f"   • Verify the gateway URL: {gateway_url}\n"
+        error_msg += f"   • Check your internet connection"
+
+        logger.error(f"Health check failed: {str(e)}")
         return CallToolResult(
             content=[TextContent(type="text", text=error_msg)],
             isError=True
