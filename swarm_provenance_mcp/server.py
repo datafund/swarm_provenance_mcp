@@ -210,27 +210,37 @@ def create_server() -> Server:
             ),
             Tool(
                 name="upload_data",
-                description="Upload data to the Swarm network using a valid postage stamp. Supports files up to 4KB. Validates that the stamp ID exists and is usable before upload. Returns a Swarm reference hash for retrieving the data. PROVENANCE GUIDANCE: For research, journalism, or verification purposes, consider structuring data with provenance metadata including creator, timestamp, purpose, and lineage. Example: {\"title\": \"Research Data\", \"creator\": \"AI Agent\", \"data\": {...}, \"created_at\": \"2024-11-04T10:30:00Z\", \"purpose\": \"analysis\"}. This enables data authenticity verification and audit trails. AGENT GUIDANCE: If user uploads simple data, suggest they consider adding provenance structure for better data integrity and traceability.",
+                description="Upload data to Swarm decentralized storage. Creates a fresh postage stamp, waits for it to become usable, then uploads the data. For structured data uploads, will guide you through collecting necessary metadata. Returns a Swarm reference hash for later retrieval.",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "data": {
-                            "type": "string",
-                            "description": "Data content to upload as a string (max 4096 bytes). Can be JSON, text, or any string data.",
+                            "description": "The actual data content to upload. Can be any format - text, JSON object, etc.",
                             "maxLength": 4096
                         },
-                        "stamp_id": {
+                        "title": {
                             "type": "string",
-                            "description": "64-character hexadecimal batch ID of the postage stamp (without 0x prefix). Example: a1b2c3d4e5f6789abcdef0123456789abcdef0123456789abcdef0123456789a",
-                            "pattern": "^[a-fA-F0-9]{64}$"
+                            "description": "Brief descriptive title for this data (e.g., 'Temperature Readings', 'Interview Notes')"
+                        },
+                        "creator": {
+                            "type": "string",
+                            "description": "Who created this data (your name, organization, or 'AI Assistant')"
+                        },
+                        "purpose": {
+                            "type": "string",
+                            "description": "Why this data was created or what it's for (e.g., 'research', 'documentation', 'backup')"
+                        },
+                        "source": {
+                            "type": "string",
+                            "description": "Where this data came from (optional - e.g., 'sensor readings', 'user input', 'analysis results')"
                         },
                         "content_type": {
                             "type": "string",
-                            "description": "MIME type of the content (e.g., application/json, text/plain, image/png)",
+                            "description": "MIME type of the content",
                             "default": "application/json"
                         }
                     },
-                    "required": ["data", "stamp_id"]
+                    "required": ["data"]
                 }
             ),
             Tool(
@@ -250,7 +260,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="create_provenance_record",
-                description="Create a structured provenance record for data authenticity and traceability. Helps build proper metadata for research, journalism, or any data requiring verification. Supports both simple and DaTA-compliant formats. AGENT GUIDANCE: Explain the benefits of provenance (authenticity, audit trails, reproducibility) and offer to create the record.",
+                description="Create a structured metadata record with title, creator, and purpose information. Useful for organizing data with proper attribution and context.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -290,7 +300,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="show_provenance_examples",
-                description="Show examples of provenance record structures for different use cases (research, journalism, general data). Helps users understand how to structure their data for better authenticity and traceability. AGENT GUIDANCE: Present examples clearly and suggest which format fits the user's use case.",
+                description="Show examples of structured data formats with metadata. Displays templates for organizing information with proper context.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -306,7 +316,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="create_swip_record",
-                description="Create a SWIP-wrapped provenance record ready for Swarm storage. Wraps provenance data with integrity verification and stamp ID for decentralized storage. AGENT GUIDANCE: Explain that SWIP format ensures data integrity on decentralized networks and is required for Swarm uploads with provenance.",
+                description="Wrap structured data in SWIP format for Swarm storage. Adds integrity verification and stamp management for decentralized storage.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -619,85 +629,158 @@ async def handle_extend_stamp(arguments: Dict[str, Any]) -> CallToolResult:
 
 
 async def handle_upload_data(arguments: Dict[str, Any]) -> CallToolResult:
-    """Handle data upload requests."""
+    """Handle data upload with guided metadata collection and fresh stamp creation."""
     try:
         data = arguments.get("data")
-        stamp_id = arguments.get("stamp_id")
-
-        if not data:
-            raise ValueError("Data cannot be empty")
-        if not stamp_id:
-            raise ValueError("Stamp ID cannot be empty")
+        title = arguments.get("title")
+        creator = arguments.get("creator")
+        purpose = arguments.get("purpose")
+        source = arguments.get("source")
         content_type = arguments.get("content_type", "application/json")
 
-        # Validate inputs
-        validate_data_size(data)
-        clean_stamp_id = validate_and_clean_stamp_id(stamp_id)
+        if not data:
+            return CallToolResult(
+                content=[TextContent(type="text", text="❌ Error: 'data' is required for upload")],
+                isError=True
+            )
 
-        # First, check if the stamp exists on this gateway
-        # Note: Newly purchased stamps may not be immediately available via get_stamp_details
-        # so we'll try to validate but allow upload to proceed if validation fails with 404
-        stamp_validation_failed = False
-        validation_error_msg = ""
+        # Validate data size
+        validate_data_size(data)
+
+        # Guide user through missing information
+        missing_info = []
+        if not title:
+            missing_info.append("**Title**: What should we call this data? (e.g., 'Research Notes', 'Temperature Data')")
+        if not creator:
+            missing_info.append("**Creator**: Who created this data? (your name, organization, or 'AI Assistant')")
+        if not purpose:
+            missing_info.append("**Purpose**: Why was this data created? (e.g., 'research', 'backup', 'documentation')")
+
+        if missing_info:
+            response_text = f"📝 **Additional Information Needed**\n"
+            response_text += f"=" * 45 + "\n\n"
+            response_text += f"To create a complete record, please provide:\n\n"
+            for i, info in enumerate(missing_info, 1):
+                response_text += f"{i}. {info}\n"
+            response_text += f"\nPlease call this tool again with the missing information."
+
+            return CallToolResult(
+                content=[TextContent(type="text", text=response_text)]
+            )
+
+        # Step 1: Create fresh stamp
+        response_text = f"🚀 **Starting Upload Process**\n"
+        response_text += f"=" * 40 + "\n\n"
+        response_text += f"📦 **Step 1**: Creating fresh postage stamp...\n"
 
         try:
-            stamp_details = gateway_client.get_stamp_details(clean_stamp_id)
+            stamp_result = gateway_client.purchase_stamp(
+                amount=settings.default_stamp_amount,
+                depth=settings.default_stamp_depth,
+                label=f"upload-{title[:20]}"
+            )
+            stamp_id = stamp_result.get('batchID')
+            if not stamp_id:
+                raise ValueError("No stamp ID returned from purchase")
 
-            # Verify it's a usable stamp
-            if not stamp_details.get("usable", False):
-                return CallToolResult(
-                    content=[TextContent(
-                        type="text",
-                        text=f"Stamp {clean_stamp_id} exists on this gateway but is not usable for uploads. "
-                             f"Please use a different stamp or create a new one with the 'purchase_stamp' tool."
-                    )],
-                    isError=True
-                )
+            response_text += f"✅ Stamp created: `{stamp_id}`\n\n"
 
-        except RequestException as e:
-            # If we can't get stamp details, it might be a timing issue with newly purchased stamps
-            if hasattr(e, 'response') and e.response is not None:
-                if e.response.status_code == 404:
-                    # Don't immediately fail - the stamp might be newly purchased
-                    # We'll let the upload attempt proceed and let the gateway handle validation
-                    stamp_validation_failed = True
-                    validation_error_msg = f"Could not validate stamp {clean_stamp_id} (it may be newly purchased)"
+        except Exception as e:
+            return CallToolResult(
+                content=[TextContent(type="text", text=f"❌ Failed to create stamp: {str(e)}")],
+                isError=True
+            )
+
+        # Step 2: Wait for stamp to become usable
+        response_text += f"⏱️ **Step 2**: Waiting for stamp to propagate...\n"
+
+        import time
+        max_wait = 60  # 1 minute
+        check_interval = 5  # 5 seconds
+        start_time = time.time()
+        stamp_ready = False
+
+        while (time.time() - start_time) < max_wait:
+            try:
+                stamp_details = gateway_client.get_stamp_details(stamp_id)
+                if stamp_details.get('usable', False):
+                    stamp_ready = True
+                    elapsed = time.time() - start_time
+                    response_text += f"✅ Stamp ready after {elapsed:.1f} seconds\n\n"
+                    break
                 else:
-                    # Other HTTP errors should be re-raised
-                    raise
-            else:
-                # Network errors should be re-raised
-                raise
+                    response_text += f"   Checking... (stamp not ready yet)\n"
+            except Exception:
+                response_text += f"   Checking... (waiting for propagation)\n"
 
-        # Proceed with upload if stamp validation passed
-        result = gateway_client.upload_data(data, clean_stamp_id, content_type)
+            time.sleep(check_interval)
 
-        response_text = f"🎉 Data uploaded successfully to Swarm!\n\n"
-        response_text += f"📄 Upload Details:\n"
-        response_text += f"   Size: {len(data.encode('utf-8')):,} bytes\n"
-        response_text += f"   Content Type: {content_type}\n"
-        response_text += f"   Stamp Used: `{clean_stamp_id}`\n\n"
-        response_text += f"🔗 Retrieval Information:\n"
-        response_text += f"   Reference Hash: `{result['reference']}`\n"
-        response_text += f"   💡 Copy this reference hash to download your data later using the 'download_data' tool."
+        if not stamp_ready:
+            response_text += f"⚠️ Stamp may still be propagating. Attempting upload anyway...\n\n"
 
-        # Add validation warning if applicable
-        if stamp_validation_failed:
-            response_text += f"\nNote: {validation_error_msg}"
+        # Step 3: Create structured data record
+        response_text += f"📋 **Step 3**: Creating structured data record...\n"
 
-        return CallToolResult(
-            content=[TextContent(type="text", text=response_text)]
+        # Create a simple provenance record
+        structured_data = ProvenanceBuilder.create_simple_record(
+            title=title,
+            data=data,
+            creator=creator,
+            purpose=purpose,
+            source=source
         )
 
-    except ValueError as e:
-        error_msg = f"Upload validation error: {str(e)}"
-        logger.error(error_msg)
-        return CallToolResult(
-            content=[TextContent(type="text", text=error_msg)],
-            isError=True
+        # Create SWIP wrapper
+        swip_record = ProvenanceBuilder.create_swip_record(
+            provenance_data=structured_data,
+            stamp_id=stamp_id,
+            provenance_standard="simple"
         )
-    except RequestException as e:
-        error_msg = f"Failed to upload data: {str(e)}"
+
+        response_text += f"✅ Structured record created with metadata\n\n"
+
+        # Step 4: Upload to Swarm
+        response_text += f"📤 **Step 4**: Uploading to Swarm network...\n"
+
+        try:
+            upload_data_str = json.dumps(swip_record)
+            upload_result = gateway_client.upload_data(upload_data_str, stamp_id, content_type)
+            reference = upload_result.get('reference')
+
+            if not reference:
+                raise ValueError("No reference returned from upload")
+
+            response_text += f"✅ Upload successful!\n\n"
+
+            # Final summary
+            response_text += f"🎉 **Upload Complete**\n"
+            response_text += f"=" * 30 + "\n\n"
+            response_text += f"📄 **Reference**: `{reference}`\n"
+            response_text += f"📦 **Stamp ID**: `{stamp_id}`\n"
+            response_text += f"📊 **Record Details**:\n"
+            response_text += f"   • Title: {title}\n"
+            response_text += f"   • Creator: {creator}\n"
+            response_text += f"   • Purpose: {purpose}\n"
+            if source:
+                response_text += f"   • Source: {source}\n"
+            response_text += f"   • Size: {len(upload_data_str)} bytes\n\n"
+            response_text += f"🔗 Use the reference hash to retrieve your data anytime!"
+
+            return CallToolResult(
+                content=[TextContent(type="text", text=response_text)]
+            )
+
+        except Exception as e:
+            response_text += f"❌ Upload failed: {str(e)}\n\n"
+            response_text += f"💡 The stamp `{stamp_id}` was created and can be reused for another upload attempt."
+
+            return CallToolResult(
+                content=[TextContent(type="text", text=response_text)],
+                isError=True
+            )
+
+    except Exception as e:
+        error_msg = f"Upload process failed: {str(e)}"
         logger.error(error_msg)
         return CallToolResult(
             content=[TextContent(type="text", text=error_msg)],
