@@ -43,7 +43,7 @@ class SwarmGatewayClient:
         Raises:
             RequestException: If the request fails
         """
-        url = f"{self.base_url}/api/v1/stamps"
+        url = f"{self.base_url}/api/v1/stamps/"
         payload = {
             "amount": amount,
             "depth": depth
@@ -81,7 +81,7 @@ class SwarmGatewayClient:
         Raises:
             RequestException: If the request fails
         """
-        url = f"{self.base_url}/api/v1/stamps"
+        url = f"{self.base_url}/api/v1/stamps/"
         response = self.session.get(url, timeout=30)
         response.raise_for_status()
         return response.json()
