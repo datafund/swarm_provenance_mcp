@@ -320,15 +320,24 @@ async def handle_purchase_stamp(arguments: Dict[str, Any]) -> CallToolResult:
 
         result = gateway_client.purchase_stamp(amount, depth, label)
 
+        # Check if purchase was actually successful
+        batch_id = result.get('batchID')
+        if not batch_id:
+            error_msg = f"❌ Stamp purchase failed - no stamp ID returned!\n\nGateway response: {result}"
+            logger.error(f"Purchase failed - missing batchID in response: {result}")
+            return CallToolResult(
+                content=[TextContent(type="text", text=error_msg)],
+                isError=True
+            )
+
         response_text = f"🎉 Stamp purchased successfully!\n\n"
         response_text += f"📋 Your Stamp Details:\n"
-        batch_id = result.get('batchID', 'N/A')
         response_text += f"   Batch ID: `{batch_id}`\n"
         response_text += f"   Amount: {amount:,} wei\n"
         response_text += f"   Depth: {depth}\n"
         if label:
             response_text += f"   Label: {label}\n"
-        response_text += f"\n✅ Stamp ID received: `{batch_id}`\n"
+        response_text += f"\n✅ Stamp ID: `{batch_id}` (immediately available)\n"
         response_text += f"⏱️  IMPORTANT: Wait ~1 minute before using this stamp!\n"
         response_text += f"📋 The stamp info must propagate through the blockchain before it can be used for uploads.\n"
         response_text += f"💡 Save this Stamp ID (without 0x prefix) and check its status in about 1 minute before uploading."
