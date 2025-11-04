@@ -20,6 +20,7 @@ from requests.exceptions import RequestException
 
 from .config import settings
 from .gateway_client import SwarmGatewayClient
+from .provenance_schemas import ProvenanceBuilder, ProvenanceGuidance
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -209,7 +210,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="upload_data",
-                description="Upload data to the Swarm network using a valid postage stamp. Supports files up to 4KB. Validates that the stamp ID exists and is usable before upload. Returns a Swarm reference hash for retrieving the data. AGENT GUIDANCE: Celebrate successful upload and provide retrieval instructions. Show how to copy the reference hash for later data retrieval.",
+                description="Upload data to the Swarm network using a valid postage stamp. Supports files up to 4KB. Validates that the stamp ID exists and is usable before upload. Returns a Swarm reference hash for retrieving the data. PROVENANCE GUIDANCE: For research, journalism, or verification purposes, consider structuring data with provenance metadata including creator, timestamp, purpose, and lineage. Example: {\"title\": \"Research Data\", \"creator\": \"AI Agent\", \"data\": {...}, \"created_at\": \"2024-11-04T10:30:00Z\", \"purpose\": \"analysis\"}. This enables data authenticity verification and audit trails. AGENT GUIDANCE: If user uploads simple data, suggest they consider adding provenance structure for better data integrity and traceability.",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -248,6 +249,62 @@ def create_server() -> Server:
                 }
             ),
             Tool(
+                name="create_provenance_record",
+                description="Create a structured provenance record for data authenticity and traceability. Helps build proper metadata for research, journalism, or any data requiring verification. Supports both simple and DaTA-compliant formats. AGENT GUIDANCE: Explain the benefits of provenance (authenticity, audit trails, reproducibility) and offer to create the record.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Human-readable title describing this data"
+                        },
+                        "data": {
+                            "description": "The actual data content to wrap with provenance"
+                        },
+                        "creator": {
+                            "type": "string",
+                            "description": "Name or ID of the creator (person, AI agent, system, etc.)"
+                        },
+                        "purpose": {
+                            "type": "string",
+                            "description": "Why this data was created or collected"
+                        },
+                        "format": {
+                            "type": "string",
+                            "enum": ["simple", "data_standard"],
+                            "default": "simple",
+                            "description": "Provenance format: 'simple' for basic use or 'data_standard' for research-grade DaTA compliance"
+                        },
+                        "tags": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional tags for categorization (e.g., ['research', 'temperature', 'climate'])"
+                        },
+                        "source": {
+                            "type": "string",
+                            "description": "Optional: where this data originated from"
+                        }
+                    },
+                    "required": ["title", "data", "creator"]
+                }
+            ),
+            Tool(
+                name="show_provenance_examples",
+                description="Show examples of provenance record structures for different use cases (research, journalism, general data). Helps users understand how to structure their data for better authenticity and traceability. AGENT GUIDANCE: Present examples clearly and suggest which format fits the user's use case.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "use_case": {
+                            "type": "string",
+                            "enum": ["research", "journalism", "general", "all"],
+                            "default": "all",
+                            "description": "Show examples for specific use case or all examples"
+                        }
+                    },
+                    "required": []
+                }
+            ),
+            Tool(
                 name="health_check",
                 description="Check gateway and Swarm network connectivity status. Returns gateway URL, response time, and connection status. Useful for troubleshooting connectivity issues. AGENT GUIDANCE: Show simple 'all good' vs 'issues detected' status. If problems found, suggest checking the gateway server at the URL provided.",
                 inputSchema={
@@ -274,6 +331,10 @@ def create_server() -> Server:
                 return await handle_upload_data(arguments)
             elif name == "download_data":
                 return await handle_download_data(arguments)
+            elif name == "create_provenance_record":
+                return await handle_create_provenance_record(arguments)
+            elif name == "show_provenance_examples":
+                return await handle_show_provenance_examples(arguments)
             elif name == "health_check":
                 return await handle_health_check(arguments)
             else:
@@ -723,6 +784,139 @@ async def handle_health_check(arguments: Dict[str, Any]) -> CallToolResult:
         error_msg += f"   • Check your internet connection"
 
         logger.error(f"Health check failed: {str(e)}")
+        return CallToolResult(
+            content=[TextContent(type="text", text=error_msg)],
+            isError=True
+        )
+
+
+async def handle_create_provenance_record(arguments: Dict[str, Any]) -> CallToolResult:
+    """Handle provenance record creation requests."""
+    try:
+        title = arguments.get("title")
+        data = arguments.get("data")
+        creator = arguments.get("creator")
+        purpose = arguments.get("purpose")
+        format_type = arguments.get("format", "simple")
+        tags = arguments.get("tags", [])
+        source = arguments.get("source")
+
+        if not title:
+            raise ValueError("Title is required")
+        if not data:
+            raise ValueError("Data is required")
+        if not creator:
+            raise ValueError("Creator is required")
+
+        # Create the provenance record
+        if format_type == "data_standard":
+            record = ProvenanceBuilder.create_data_record(
+                data=data,
+                creator_name=creator,
+                creator_type="ai_agent" if "ai" in creator.lower() or "claude" in creator.lower() else "human",
+                purpose=purpose,
+                tags=tags
+            )
+        else:  # simple format
+            record = ProvenanceBuilder.create_simple_record(
+                title=title,
+                data=data,
+                creator=creator,
+                description=None,
+                purpose=purpose,
+                source=source,
+                tags=tags
+            )
+
+        response_text = f"✅ Provenance record created successfully!\n\n"
+        response_text += f"📋 Record Type: {format_type.replace('_', ' ').title()}\n"
+        response_text += f"📄 Title: {title}\n"
+        response_text += f"👤 Creator: {creator}\n"
+        if purpose:
+            response_text += f"🎯 Purpose: {purpose}\n"
+        if tags:
+            response_text += f"🏷️  Tags: {', '.join(tags)}\n"
+
+        response_text += f"\n📝 Complete Provenance Record:\n"
+        response_text += f"```json\n{json.dumps(record, indent=2)}\n```\n\n"
+        response_text += f"💡 Benefits of this structure:\n"
+        response_text += f"   • Data authenticity verification\n"
+        response_text += f"   • Clear audit trails\n"
+        response_text += f"   • Reproducible processes\n"
+        response_text += f"   • Attribution tracking\n\n"
+        response_text += f"📤 You can now upload this structured data to Swarm for tamper-proof storage!"
+
+        return CallToolResult(
+            content=[TextContent(type="text", text=response_text)]
+        )
+
+    except ValueError as e:
+        error_msg = f"Provenance creation error: {str(e)}"
+        logger.error(error_msg)
+        return CallToolResult(
+            content=[TextContent(type="text", text=error_msg)],
+            isError=True
+        )
+    except Exception as e:
+        error_msg = f"Failed to create provenance record: {str(e)}"
+        logger.error(error_msg)
+        return CallToolResult(
+            content=[TextContent(type="text", text=error_msg)],
+            isError=True
+        )
+
+
+async def handle_show_provenance_examples(arguments: Dict[str, Any]) -> CallToolResult:
+    """Handle requests to show provenance examples."""
+    try:
+        use_case = arguments.get("use_case", "all")
+
+        response_text = f"📚 Provenance Record Examples\n"
+        response_text += f"=" * 50 + "\n\n"
+
+        if use_case in ["general", "all"]:
+            response_text += f"🔹 **Simple Provenance Format** (General Use)\n"
+            response_text += f"```json\n{json.dumps(ProvenanceGuidance.SCHEMA_EXAMPLES['simple'], indent=2)}\n```\n\n"
+
+        if use_case in ["research", "all"]:
+            response_text += f"🔬 **Research-Grade Format** (DaTA Standard)\n"
+            response_text += f"```json\n{json.dumps(ProvenanceGuidance.SCHEMA_EXAMPLES['research'], indent=2)}\n```\n\n"
+
+        if use_case in ["journalism", "all"]:
+            response_text += f"📰 **Journalism Example** (Source Verification)\n"
+            journalism_example = {
+                "title": "Interview Transcript - Climate Research",
+                "creator": "Journalist AI Assistant",
+                "purpose": "fact_checking_climate_claims",
+                "data": {
+                    "interview_date": "2024-11-04",
+                    "interviewee": "Dr. Smith, Climate Scientist",
+                    "location": "University Lab",
+                    "key_quotes": [
+                        "Temperature data shows clear warming trend",
+                        "Ice core samples confirm historical patterns"
+                    ],
+                    "verification_status": "pending_fact_check"
+                },
+                "source": "audio_recording_ref_abc123",
+                "tags": ["journalism", "climate", "interview", "fact-check"],
+                "created_at": "2024-11-04T14:30:00Z"
+            }
+            response_text += f"```json\n{json.dumps(journalism_example, indent=2)}\n```\n\n"
+
+        response_text += f"💡 **Choose Your Format:**\n"
+        response_text += f"• **Simple**: Easy to use, good for general data\n"
+        response_text += f"• **DaTA Standard**: Research-grade with content hashing\n"
+        response_text += f"• **Custom**: Adapt these examples to your needs\n\n"
+        response_text += f"🛠️  Use `create_provenance_record` to build structured records easily!"
+
+        return CallToolResult(
+            content=[TextContent(type="text", text=response_text)]
+        )
+
+    except Exception as e:
+        error_msg = f"Failed to show examples: {str(e)}"
+        logger.error(error_msg)
         return CallToolResult(
             content=[TextContent(type="text", text=error_msg)],
             isError=True
