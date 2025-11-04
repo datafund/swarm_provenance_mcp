@@ -227,6 +227,46 @@ Check gateway and Swarm network connectivity status.
 - **Configuration**: Environment-based settings management
 - **Error Handling**: Comprehensive error handling and logging
 
+## Claude Desktop Integration
+
+### Setup Instructions
+
+1. **Install Claude Desktop**: Download from [claude.ai](https://claude.ai/download)
+
+2. **Configure MCP Server**: Add to Claude Desktop's configuration file:
+
+**macOS/Linux** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "swarm-provenance": {
+      "command": "python",
+      "args": ["-m", "swarm_provenance_mcp.server"],
+      "cwd": "/path/to/swarm_provenance_mcp"
+    }
+  }
+}
+```
+
+**Windows** (`%APPDATA%\Claude\claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "swarm-provenance": {
+      "command": "python",
+      "args": ["-m", "swarm_provenance_mcp.server"],
+      "cwd": "C:\\path\\to\\swarm_provenance_mcp"
+    }
+  }
+}
+```
+
+*Note: Replace `/path/to/swarm_provenance_mcp` with the actual path to your project directory.*
+
+**Alternative (if package is installed)**: You can use `"command": "swarm-provenance-mcp"` instead after running `pip install -e .`
+
+3. **Restart Claude Desktop** and test with: "List all available Swarm stamps"
+
 ## Development
 
 ### Testing
