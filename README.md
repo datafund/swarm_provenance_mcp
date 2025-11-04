@@ -12,7 +12,9 @@ This MCP server provides tools for AI agents to interact with Swarm postage stam
 - **Stamp Status**: Get detailed information about specific stamps
 - **List Stamps**: View all available postage stamps
 - **Extend Stamps**: Add additional funds to existing stamps
-- **Utilization Monitoring**: Check stamp usage statistics
+- **Data Upload**: Upload data to Swarm network with stamp validation
+- **Data Download**: Download data from Swarm network by reference
+- **Health Monitoring**: Check gateway and Swarm network connectivity
 
 ## Installation
 
@@ -50,7 +52,7 @@ cp .env.example .env
 Environment variables (set in `.env` file):
 
 - `SWARM_GATEWAY_URL`: URL of the swarm_connect FastAPI gateway (default: `http://localhost:8001`)
-- `DEFAULT_STAMP_AMOUNT`: Default amount for new stamps in wei (default: `1000000000`)
+- `DEFAULT_STAMP_AMOUNT`: Default amount for new stamps in wei (default: `2000000000`)
 - `DEFAULT_STAMP_DEPTH`: Default depth for new stamps (default: `17`)
 
 ## Usage
@@ -130,19 +132,52 @@ Extend an existing stamp with additional funds.
 }
 ```
 
-#### `get_stamp_utilization`
-Get utilization percentage for a specific stamp.
+#### `upload_data`
+Upload data to the Swarm network with stamp validation.
 
 **Parameters:**
-- `stamp_id` (string): The batch ID of the stamp
+- `data` (string): Data content to upload (max 4096 bytes)
+- `stamp_id` (string): Postage stamp ID to use for upload
+- `content_type` (string): MIME type of the content (optional, default: "application/json")
 
 **Example:**
 ```json
 {
-  "name": "get_stamp_utilization",
+  "name": "upload_data",
   "arguments": {
-    "stamp_id": "000de42079daebd58347bb38ce05bdc477701d93651d3bba318a9aee3fbd786a"
+    "data": "{\"message\": \"Hello Swarm!\"}",
+    "stamp_id": "000de42079daebd58347bb38ce05bdc477701d93651d3bba318a9aee3fbd786a",
+    "content_type": "application/json"
   }
+}
+```
+
+#### `download_data`
+Download data from the Swarm network using a reference hash.
+
+**Parameters:**
+- `reference` (string): Swarm reference hash of the data to download
+
+**Example:**
+```json
+{
+  "name": "download_data",
+  "arguments": {
+    "reference": "a1b2c3d4e5f6789abcdef0123456789abcdef0123456789abcdef0123456789a"
+  }
+}
+```
+
+#### `health_check`
+Check gateway and Swarm network connectivity status.
+
+**Parameters:** None
+
+**Example:**
+```json
+{
+  "name": "health_check",
+  "arguments": {}
 }
 ```
 
