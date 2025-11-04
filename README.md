@@ -20,7 +20,7 @@ This MCP server provides tools for AI agents to interact with Swarm postage stam
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.8 or higher (use `python3` command)
 - Internet connection (uses public gateway by default)
 - Optional: Self-hosted `swarm_connect` gateway service (see Gateway Options below)
 
@@ -233,10 +233,17 @@ Check gateway and Swarm network connectivity status.
 
 1. **Install Claude Desktop**: Download from [claude.ai](https://claude.ai/download)
 
-2. **Clone this repository**:
+2. **Clone this repository and set up environment**:
 ```bash
 git clone https://github.com/datafund/swarm_provenance_mcp.git
 cd swarm_provenance_mcp
+
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -e .
 ```
 
 3. **Configure MCP Server**: Add to Claude Desktop's configuration file:
@@ -246,7 +253,7 @@ cd swarm_provenance_mcp
 {
   "mcpServers": {
     "swarm-provenance": {
-      "command": "python",
+      "command": "/path/to/swarm_provenance_mcp/venv/bin/python",
       "args": ["-m", "swarm_provenance_mcp.server"],
       "cwd": "/path/to/swarm_provenance_mcp"
     }
@@ -259,7 +266,7 @@ cd swarm_provenance_mcp
 {
   "mcpServers": {
     "swarm-provenance": {
-      "command": "python",
+      "command": "C:\\path\\to\\swarm_provenance_mcp\\venv\\Scripts\\python.exe",
       "args": ["-m", "swarm_provenance_mcp.server"],
       "cwd": "C:\\path\\to\\swarm_provenance_mcp"
     }

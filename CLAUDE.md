@@ -13,7 +13,7 @@ This is a Model Context Protocol (MCP) server that enables AI agents to manage S
 ### Environment Setup
 ```bash
 # Create and activate virtual environment
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # Linux/Mac
 # venv\Scripts\activate  # Windows
 
