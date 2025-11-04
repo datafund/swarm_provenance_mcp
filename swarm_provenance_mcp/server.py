@@ -328,9 +328,10 @@ async def handle_purchase_stamp(arguments: Dict[str, Any]) -> CallToolResult:
         response_text += f"   Depth: {depth}\n"
         if label:
             response_text += f"   Label: {label}\n"
-        response_text += f"\n⏱️  Important: Stamp info takes ~1 minute to propagate through the blockchain.\n"
-        response_text += f"📤 Next steps: Use this stamp for ONE file upload (max 4KB), then purchase another stamp for additional uploads.\n"
-        response_text += f"💡 Copy the Batch ID above (without 0x prefix) for your upload."
+        response_text += f"\n✅ Stamp ID received: `{batch_id}`\n"
+        response_text += f"⏱️  IMPORTANT: Wait ~1 minute before using this stamp!\n"
+        response_text += f"📋 The stamp info must propagate through the blockchain before it can be used for uploads.\n"
+        response_text += f"💡 Save this Stamp ID (without 0x prefix) and check its status in about 1 minute before uploading."
 
         return CallToolResult(
             content=[TextContent(type="text", text=response_text)]
