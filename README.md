@@ -233,7 +233,13 @@ Check gateway and Swarm network connectivity status.
 
 1. **Install Claude Desktop**: Download from [claude.ai](https://claude.ai/download)
 
-2. **Configure MCP Server**: Add to Claude Desktop's configuration file:
+2. **Clone this repository**:
+```bash
+git clone https://github.com/datafund/swarm_provenance_mcp.git
+cd swarm_provenance_mcp
+```
+
+3. **Configure MCP Server**: Add to Claude Desktop's configuration file:
 
 **macOS/Linux** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 ```json
@@ -261,11 +267,11 @@ Check gateway and Swarm network connectivity status.
 }
 ```
 
-*Note: Replace `/path/to/swarm_provenance_mcp` with the actual path to your project directory.*
+*Note: Replace `/path/to/swarm_provenance_mcp` with the actual path where you cloned the repository.*
 
 **Alternative (if package is installed)**: You can use `"command": "swarm-provenance-mcp"` instead after running `pip install -e .`
 
-3. **Restart Claude Desktop** and test with: "List all available Swarm stamps"
+4. **Restart Claude Desktop** and test with: "List all available Swarm stamps"
 
 ## Development
 
