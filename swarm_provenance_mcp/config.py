@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # Swarm Gateway Configuration
     swarm_gateway_url: str = Field(
-        default="http://localhost:8001",
+        default="https://provenance-gateway.datafund.io",
         env="SWARM_GATEWAY_URL",
         description="URL of the swarm_connect FastAPI gateway"
     )
