@@ -322,7 +322,8 @@ async def handle_purchase_stamp(arguments: Dict[str, Any]) -> CallToolResult:
 
         response_text = f"🎉 Stamp purchased successfully!\n\n"
         response_text += f"📋 Your Stamp Details:\n"
-        response_text += f"   Batch ID: `{result['batchID']}`\n"
+        batch_id = result.get('batchID', 'N/A')
+        response_text += f"   Batch ID: `{batch_id}`\n"
         response_text += f"   Amount: {amount:,} wei\n"
         response_text += f"   Depth: {depth}\n"
         if label:
@@ -354,7 +355,9 @@ async def handle_purchase_stamp(arguments: Dict[str, Any]) -> CallToolResult:
 async def handle_get_stamp_status(arguments: Dict[str, Any]) -> CallToolResult:
     """Handle stamp status requests."""
     try:
-        stamp_id = arguments["stamp_id"]
+        stamp_id = arguments.get("stamp_id")
+        if not stamp_id:
+            raise ValueError("Stamp ID is required")
 
         # Validate and clean stamp ID
         clean_stamp_id = validate_and_clean_stamp_id(stamp_id)
@@ -470,8 +473,13 @@ async def handle_list_stamps(arguments: Dict[str, Any]) -> CallToolResult:
 async def handle_extend_stamp(arguments: Dict[str, Any]) -> CallToolResult:
     """Handle stamp extension requests."""
     try:
-        stamp_id = arguments["stamp_id"]
-        amount = arguments["amount"]
+        stamp_id = arguments.get("stamp_id")
+        amount = arguments.get("amount")
+
+        if not stamp_id:
+            raise ValueError("Stamp ID is required")
+        if not amount:
+            raise ValueError("Amount is required")
 
         # Validate inputs
         clean_stamp_id = validate_and_clean_stamp_id(stamp_id)
@@ -481,9 +489,10 @@ async def handle_extend_stamp(arguments: Dict[str, Any]) -> CallToolResult:
 
         response_text = f"✅ Stamp extended successfully!\n\n"
         response_text += f"📋 Extension Details:\n"
-        response_text += f"   Batch ID: `{result['batchID']}`\n"
+        batch_id = result.get('batchID', 'N/A')
+        response_text += f"   Batch ID: `{batch_id}`\n"
         response_text += f"   Additional Amount: {amount:,} wei\n"
-        response_text += f"   Status: {result['message']}\n\n"
+        response_text += f"   Status: {result.get('message', 'Extended')}\n\n"
         response_text += f"⏱️  Important: Extension info takes ~1 minute to propagate through the blockchain.\n"
         response_text += f"🔍 Check stamp status again in about 1 minute to see the new expiration time."
 
@@ -510,8 +519,13 @@ async def handle_extend_stamp(arguments: Dict[str, Any]) -> CallToolResult:
 async def handle_upload_data(arguments: Dict[str, Any]) -> CallToolResult:
     """Handle data upload requests."""
     try:
-        data = arguments["data"]
-        stamp_id = arguments["stamp_id"]
+        data = arguments.get("data")
+        stamp_id = arguments.get("stamp_id")
+
+        if not data:
+            raise ValueError("Data cannot be empty")
+        if not stamp_id:
+            raise ValueError("Stamp ID cannot be empty")
         content_type = arguments.get("content_type", "application/json")
 
         # Validate inputs
@@ -592,7 +606,9 @@ async def handle_upload_data(arguments: Dict[str, Any]) -> CallToolResult:
 async def handle_download_data(arguments: Dict[str, Any]) -> CallToolResult:
     """Handle data download requests."""
     try:
-        reference = arguments["reference"]
+        reference = arguments.get("reference")
+        if not reference:
+            raise ValueError("Reference is required")
 
         # Validate and clean reference hash
         clean_reference = validate_and_clean_reference_hash(reference)
