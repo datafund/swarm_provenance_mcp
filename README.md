@@ -21,7 +21,8 @@ This MCP server provides tools for AI agents to interact with Swarm postage stam
 ### Prerequisites
 
 - Python 3.8 or higher
-- Access to a running `swarm_connect` gateway service
+- Internet connection (uses public gateway by default)
+- Optional: Self-hosted `swarm_connect` gateway service (see Gateway Options below)
 
 ### Setup
 
@@ -51,9 +52,29 @@ cp .env.example .env
 
 Environment variables (set in `.env` file):
 
-- `SWARM_GATEWAY_URL`: URL of the swarm_connect FastAPI gateway (default: `http://localhost:8001`)
+- `SWARM_GATEWAY_URL`: URL of the swarm_connect FastAPI gateway (default: `https://provenance-gateway.datafund.io`)
 - `DEFAULT_STAMP_AMOUNT`: Default amount for new stamps in wei (default: `2000000000`)
 - `DEFAULT_STAMP_DEPTH`: Default depth for new stamps (default: `17`)
+
+### Gateway Options
+
+#### Public Gateway (Recommended)
+The MCP server uses the public gateway hosted by DataFund by default at `https://provenance-gateway.datafund.io`. This gateway provides:
+- High availability and reliability
+- No setup or maintenance required
+- Direct access to the Swarm network
+- Free to use for development and testing
+
+#### Self-Hosted Gateway
+You can also run your own gateway instance for:
+- Custom configurations
+- Private or isolated environments
+- Local development
+
+To use a self-hosted gateway:
+1. Clone the gateway repository: `git clone https://github.com/datafund/swarm_connect`
+2. Follow the setup instructions in that repository
+3. Update your `.env` file: `SWARM_GATEWAY_URL=http://localhost:8000`
 
 ## Usage
 
