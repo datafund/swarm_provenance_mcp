@@ -305,6 +305,35 @@ def create_server() -> Server:
                 }
             ),
             Tool(
+                name="create_swip_record",
+                description="Create a SWIP-wrapped provenance record ready for Swarm storage. Wraps provenance data with integrity verification and stamp ID for decentralized storage. AGENT GUIDANCE: Explain that SWIP format ensures data integrity on decentralized networks and is required for Swarm uploads with provenance.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "provenance_data": {
+                            "type": "object",
+                            "description": "The inner provenance record (DaTA, simple, or custom format)"
+                        },
+                        "stamp_id": {
+                            "type": "string",
+                            "description": "Swarm stamp ID for TTL management (64-character hex, 0x prefix will be removed)"
+                        },
+                        "provenance_standard": {
+                            "type": "string",
+                            "default": "DaTA v1.0.0",
+                            "description": "Standard used for the inner provenance data"
+                        },
+                        "encryption": {
+                            "type": "string",
+                            "enum": ["none", "aes-256-gcm"],
+                            "default": "none",
+                            "description": "Encryption method (currently only 'none' supported)"
+                        }
+                    },
+                    "required": ["provenance_data", "stamp_id"]
+                }
+            ),
+            Tool(
                 name="health_check",
                 description="Check gateway and Swarm network connectivity status. Returns gateway URL, response time, and connection status. Useful for troubleshooting connectivity issues. AGENT GUIDANCE: Show simple 'all good' vs 'issues detected' status. If problems found, suggest checking the gateway server at the URL provided.",
                 inputSchema={
@@ -335,6 +364,8 @@ def create_server() -> Server:
                 return await handle_create_provenance_record(arguments)
             elif name == "show_provenance_examples":
                 return await handle_show_provenance_examples(arguments)
+            elif name == "create_swip_record":
+                return await handle_create_swip_record(arguments)
             elif name == "health_check":
                 return await handle_health_check(arguments)
             else:
@@ -904,11 +935,16 @@ async def handle_show_provenance_examples(arguments: Dict[str, Any]) -> CallTool
             }
             response_text += f"```json\n{json.dumps(journalism_example, indent=2)}\n```\n\n"
 
+        if use_case in ["all"]:
+            response_text += f"🌐 **SWIP-Wrapped Format** (Swarm Storage)\n"
+            response_text += f"```json\n{json.dumps(ProvenanceGuidance.SCHEMA_EXAMPLES['swip'], indent=2)}\n```\n\n"
+
         response_text += f"💡 **Choose Your Format:**\n"
         response_text += f"• **Simple**: Easy to use, good for general data\n"
         response_text += f"• **DaTA Standard**: Research-grade with content hashing\n"
+        response_text += f"• **SWIP**: Wrapped format for Swarm decentralized storage\n"
         response_text += f"• **Custom**: Adapt these examples to your needs\n\n"
-        response_text += f"🛠️  Use `create_provenance_record` to build structured records easily!"
+        response_text += f"🛠️  Use `create_provenance_record` to build inner records, then `create_swip_record` to wrap for Swarm!"
 
         return CallToolResult(
             content=[TextContent(type="text", text=response_text)]
@@ -916,6 +952,77 @@ async def handle_show_provenance_examples(arguments: Dict[str, Any]) -> CallTool
 
     except Exception as e:
         error_msg = f"Failed to show examples: {str(e)}"
+        logger.error(error_msg)
+        return CallToolResult(
+            content=[TextContent(type="text", text=error_msg)],
+            isError=True
+        )
+
+
+async def handle_create_swip_record(arguments: Dict[str, Any]) -> CallToolResult:
+    """Handle requests to create SWIP-wrapped provenance records."""
+    try:
+        provenance_data = arguments.get("provenance_data", {})
+        stamp_id = arguments.get("stamp_id", "")
+        provenance_standard = arguments.get("provenance_standard", "DaTA v1.0.0")
+        encryption = arguments.get("encryption", "none")
+
+        # Validate required inputs
+        if not provenance_data:
+            return CallToolResult(
+                content=[TextContent(type="text", text="❌ Error: provenance_data is required")],
+                isError=True
+            )
+
+        if not stamp_id:
+            return CallToolResult(
+                content=[TextContent(type="text", text="❌ Error: stamp_id is required")],
+                isError=True
+            )
+
+        # Create SWIP record
+        swip_record = ProvenanceBuilder.create_swip_record(
+            provenance_data=provenance_data,
+            stamp_id=stamp_id,
+            provenance_standard=provenance_standard,
+            encryption=encryption
+        )
+
+        # Validate the SWIP record
+        is_valid, errors = ProvenanceBuilder.validate_record(swip_record, "swip")
+
+        response_text = f"🌐 SWIP-Wrapped Provenance Record Created\n"
+        response_text += f"=" * 50 + "\n\n"
+
+        if is_valid:
+            response_text += f"✅ **Validation**: SWIP record is valid\n\n"
+        else:
+            response_text += f"⚠️ **Validation**: {', '.join(errors)}\n\n"
+
+        response_text += f"📋 **SWIP Record Structure**:\n"
+        response_text += f"```json\n{json.dumps(swip_record, indent=2)}\n```\n\n"
+
+        response_text += f"🔍 **Record Details**:\n"
+        response_text += f"• **Content Hash**: {swip_record['content_hash']}\n"
+        response_text += f"• **Standard**: {swip_record['provenance_standard']}\n"
+        response_text += f"• **Encryption**: {swip_record['encryption']}\n"
+        response_text += f"• **Stamp ID**: {swip_record['stamp_id']}\n"
+        response_text += f"• **Data Size**: {len(swip_record['data'])} characters (Base64)\n\n"
+
+        response_text += f"💾 **Ready for Swarm Upload**:\n"
+        response_text += f"This SWIP record can be uploaded to Swarm using the `upload_data` tool.\n"
+        response_text += f"The wrapper ensures data integrity and provides stamp management.\n\n"
+
+        response_text += f"🔐 **Integrity Protection**:\n"
+        response_text += f"The SHA-256 hash ensures your data hasn't been tampered with.\n"
+        response_text += f"Anyone can verify authenticity by recalculating the hash."
+
+        return CallToolResult(
+            content=[TextContent(type="text", text=response_text)]
+        )
+
+    except Exception as e:
+        error_msg = f"Failed to create SWIP record: {str(e)}"
         logger.error(error_msg)
         return CallToolResult(
             content=[TextContent(type="text", text=error_msg)],

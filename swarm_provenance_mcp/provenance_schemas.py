@@ -4,6 +4,7 @@ Supports multiple standards including DaTA, PROV-O, and custom formats.
 """
 
 import json
+import base64
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 import hashlib
@@ -90,6 +91,38 @@ class ProvenanceStandards:
             "source": {"type": "string", "description": "Where this data came from"}
         },
         "required": ["title", "creator", "data"]
+    }
+
+    # SWIP (Swarm Interoperability Protocol) wrapper schema
+    SWIP_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "content_hash": {
+                "type": "string",
+                "pattern": "^sha256:[a-fA-F0-9]{64}$",
+                "description": "SHA-256 hash of the raw provenance data (before Base64 encoding)"
+            },
+            "provenance_standard": {
+                "type": "string",
+                "description": "Standard used for the inner provenance data (e.g., 'DaTA v1.0.0', 'W3C PROV', 'custom')"
+            },
+            "encryption": {
+                "type": "string",
+                "enum": ["none", "aes-256-gcm"],
+                "default": "none",
+                "description": "Encryption method used (default: 'none')"
+            },
+            "data": {
+                "type": "string",
+                "description": "Base64-encoded provenance data (actual content in any format)"
+            },
+            "stamp_id": {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{64}$",
+                "description": "Swarm stamp ID used for TTL management"
+            }
+        },
+        "required": ["content_hash", "provenance_standard", "data", "stamp_id"]
     }
 
 
@@ -190,13 +223,87 @@ class ProvenanceBuilder:
         return record
 
     @staticmethod
+    def create_swip_record(
+        provenance_data: Dict[str, Any],
+        stamp_id: str,
+        provenance_standard: str = "DaTA v1.0.0",
+        encryption: str = "none"
+    ) -> Dict[str, Any]:
+        """
+        Create a SWIP-compliant wrapper record for Swarm storage.
+
+        Args:
+            provenance_data: The inner provenance record (DaTA, simple, etc.)
+            stamp_id: Swarm stamp ID for TTL management
+            provenance_standard: Standard used for inner data
+            encryption: Encryption method (default: "none")
+
+        Returns:
+            SWIP-wrapped record ready for Swarm upload
+        """
+        # Clean stamp_id (remove 0x prefix if present)
+        if stamp_id.startswith("0x"):
+            stamp_id = stamp_id[2:]
+
+        # Serialize the inner provenance data
+        data_str = json.dumps(provenance_data, sort_keys=True)
+        data_bytes = data_str.encode('utf-8')
+
+        # Calculate hash of raw data (before Base64 encoding)
+        content_hash = f"sha256:{hashlib.sha256(data_bytes).hexdigest()}"
+
+        # Base64 encode the data
+        data_b64 = base64.b64encode(data_bytes).decode('utf-8')
+
+        # Create SWIP wrapper
+        swip_record = {
+            "content_hash": content_hash,
+            "provenance_standard": provenance_standard,
+            "encryption": encryption,
+            "data": data_b64,
+            "stamp_id": stamp_id
+        }
+
+        return swip_record
+
+    @staticmethod
+    def extract_from_swip(swip_record: Dict[str, Any]) -> tuple[Dict[str, Any], bool]:
+        """
+        Extract and verify provenance data from a SWIP record.
+
+        Args:
+            swip_record: SWIP-wrapped record from Swarm
+
+        Returns:
+            Tuple of (inner_provenance_data, is_valid)
+        """
+        try:
+            # Extract and decode the data
+            data_b64 = swip_record.get("data", "")
+            data_bytes = base64.b64decode(data_b64)
+
+            # Verify hash
+            expected_hash = swip_record.get("content_hash", "")
+            actual_hash = f"sha256:{hashlib.sha256(data_bytes).hexdigest()}"
+
+            if expected_hash != actual_hash:
+                return {}, False
+
+            # Parse JSON
+            provenance_data = json.loads(data_bytes.decode('utf-8'))
+            return provenance_data, True
+
+        except Exception:
+            return {}, False
+
+    @staticmethod
     def validate_record(record: Dict[str, Any], schema_type: str = "simple") -> tuple[bool, List[str]]:
         """
         Validate a provenance record against a schema.
 
         Args:
             record: The provenance record to validate
-            schema_type: "simple", "data", or "custom"
+            schema_type: "simple", "data", "swip", or "custom"
 
         Returns:
             Tuple of (is_valid, list_of_errors)
@@ -208,6 +315,8 @@ class ProvenanceBuilder:
                 schema = ProvenanceStandards.SIMPLE_SCHEMA
             elif schema_type == "data":
                 schema = ProvenanceStandards.DATA_SCHEMA
+            elif schema_type == "swip":
+                schema = ProvenanceStandards.SWIP_SCHEMA
             else:
                 return False, ["Unknown schema type"]
 
@@ -229,6 +338,8 @@ class ProvenanceBuilder:
             required_fields = ["title", "creator", "data"]
         elif schema_type == "data":
             required_fields = ["provenance_standard", "content_hash", "timestamp", "creator", "data"]
+        elif schema_type == "swip":
+            required_fields = ["content_hash", "provenance_standard", "data", "stamp_id"]
         else:
             return False, ["Unknown schema type"]
 
@@ -269,6 +380,17 @@ For research data, journalism, or any data requiring verification, consider crea
   "data": { /* your research data */ },
   "lineage": [{"source_reference": "original_dataset_ref", "transformation": "analysis"}],
   "metadata": {"purpose": "climate_analysis", "tags": ["climate", "temperature"]}
+}
+```
+
+🌐 **SWIP-Wrapped Format (for Swarm storage):**
+```json
+{
+  "content_hash": "sha256:hash_of_inner_data...",
+  "provenance_standard": "DaTA v1.0.0",
+  "encryption": "none",
+  "data": "base64_encoded_provenance_data...",
+  "stamp_id": "your_swarm_stamp_id"
 }
 ```
 
@@ -326,5 +448,12 @@ You can upload any JSON structure, but provenance-aware formats help establish t
                 "access_level": "public",
                 "tags": ["botany", "temperature", "growth"]
             }
+        },
+        "swip": {
+            "content_hash": "sha256:a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+            "provenance_standard": "DaTA v1.0.0",
+            "encryption": "none",
+            "data": "eyJ0aXRsZSI6IlJlc2VhcmNoIERhdGEiLCJjcmVhdG9yIjoiQUkgQWdlbnQi...",
+            "stamp_id": "fe2f1db89065c8c11d10b87a5a2e8bc0e1c9a8a7c1b2e0f8c7e6d5c4b3a21234"
         }
     }
