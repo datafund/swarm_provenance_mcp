@@ -143,13 +143,13 @@ def create_server() -> Server:
                     "properties": {
                         "amount": {
                             "type": "integer",
-                            "description": f"Amount of the stamp in wei. Higher amounts allow more data uploads and longer TTL (default: {settings.default_stamp_amount})",
+                            "description": f"Amount of the stamp in wei. Higher amounts provide longer TTL (time-to-live) before stamp expires (default: {settings.default_stamp_amount})",
                             "default": settings.default_stamp_amount,
                             "minimum": 1000000
                         },
                         "depth": {
                             "type": "integer",
-                            "description": f"Depth of the stamp (16-24). Higher depth allows more parallel uploads (default: {settings.default_stamp_depth})",
+                            "description": f"Depth of the stamp (16-24). Depth determines storage capacity - higher depth allows storing more chunks (default: {settings.default_stamp_depth})",
                             "default": settings.default_stamp_depth,
                             "minimum": 16,
                             "maximum": 24
@@ -189,7 +189,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="extend_stamp",
-                description="Extend an existing stamp with additional funds to increase its TTL and allow more data uploads. The stamp must be owned by this node. AGENT GUIDANCE: Show before/after comparison if possible. Note that extension info takes time to propagate through blockchain - suggest user to check stamp status again in ~1 minute to see new expiration time.",
+                description="Extend an existing stamp with additional funds to increase its TTL (time-to-live). This extends the expiration date but does NOT increase storage capacity. The stamp must be owned by this node. AGENT GUIDANCE: Show before/after comparison if possible. Note that extension info takes time to propagate through blockchain - suggest user to check stamp status again in ~1 minute to see new expiration time.",
                 inputSchema={
                     "type": "object",
                     "properties": {
