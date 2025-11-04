@@ -1,0 +1,2 @@
+[console_scripts]
+swarm-provenance-mcp = swarm_provenance_mcp.server:main_sync

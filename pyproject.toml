@@ -1,0 +1,95 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swarm-provenance-mcp"
+version = "0.1.0"
+description = "MCP server for Swarm postage stamp management"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Swarm Provenance Team"}
+]
+keywords = ["mcp", "swarm", "postage", "stamps", "decentralized"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "mcp>=1.0.0",
+    "requests>=2.31.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.10.0",
+    "requests-mock>=1.10.0",
+    "psutil>=5.9.0",
+    "jsonschema>=4.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.10.0",
+    "requests-mock>=1.10.0",
+    "psutil>=5.9.0",
+    "jsonschema>=4.0.0",
+]
+security = [
+    "safety>=2.0.0",
+    "bandit>=1.7.0",
+]
+
+[project.scripts]
+swarm-provenance-mcp = "swarm_provenance_mcp.server:main_sync"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["swarm_provenance_mcp*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+select = ["E", "F", "W", "C90", "I", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "C4", "DTZ", "T10", "EM", "ISC", "ICN", "G", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SIM", "TID", "TCH", "ARG", "PTH", "ERA", "PD", "PGH", "PL", "TRY", "NPY", "RUF"]
+ignore = ["S101", "S311", "PLR0913", "PLR0915"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers --strict-config"
+asyncio_mode = "auto"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests requiring external services",
+    "security: marks tests as security-focused",
+    "performance: marks tests as performance-focused",
+    "regression: marks tests as regression tests",
+    "smoke: marks tests as smoke tests for quick validation",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:pydantic.*",
+    "ignore::UserWarning:requests.*",
+    "ignore::pydantic.warnings.PydanticDeprecatedSince20",
+]
