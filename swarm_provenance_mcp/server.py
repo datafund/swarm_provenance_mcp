@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import re
 from typing import Any, Dict, List, Optional, Sequence
 
 from mcp.server import Server
@@ -27,6 +28,104 @@ logger = logging.getLogger(__name__)
 # Global gateway client instance
 gateway_client = SwarmGatewayClient()
 
+# Validation patterns
+STAMP_ID_PATTERN = re.compile(r"^[a-fA-F0-9]{64}$")
+REFERENCE_HASH_PATTERN = re.compile(r"^[a-fA-F0-9]{64}$")
+
+
+def validate_and_clean_stamp_id(stamp_id: str) -> str:
+    """Validate and clean stamp ID, removing 0x prefix if present.
+
+    Args:
+        stamp_id: The stamp ID to validate
+
+    Returns:
+        Cleaned stamp ID without 0x prefix
+
+    Raises:
+        ValueError: If stamp ID format is invalid
+    """
+    if not stamp_id:
+        raise ValueError("Stamp ID cannot be empty")
+
+    # Remove 0x prefix if present
+    if stamp_id.startswith("0x") or stamp_id.startswith("0X"):
+        stamp_id = stamp_id[2:]
+
+    # Validate format
+    if not STAMP_ID_PATTERN.match(stamp_id):
+        raise ValueError(f"Invalid stamp ID format. Expected 64-character hexadecimal string (without 0x prefix), got: {stamp_id}")
+
+    return stamp_id
+
+
+def validate_and_clean_reference_hash(reference: str) -> str:
+    """Validate and clean reference hash, removing 0x prefix if present.
+
+    Args:
+        reference: The reference hash to validate
+
+    Returns:
+        Cleaned reference hash without 0x prefix
+
+    Raises:
+        ValueError: If reference hash format is invalid
+    """
+    if not reference:
+        raise ValueError("Reference hash cannot be empty")
+
+    # Remove 0x prefix if present
+    if reference.startswith("0x") or reference.startswith("0X"):
+        reference = reference[2:]
+
+    # Validate format
+    if not REFERENCE_HASH_PATTERN.match(reference):
+        raise ValueError(f"Invalid reference hash format. Expected 64-character hexadecimal string (without 0x prefix), got: {reference}")
+
+    return reference
+
+
+def validate_stamp_amount(amount: int) -> None:
+    """Validate stamp amount.
+
+    Args:
+        amount: The amount to validate
+
+    Raises:
+        ValueError: If amount is invalid
+    """
+    if amount < 1000000:
+        raise ValueError(f"Stamp amount must be at least 1,000,000 wei, got: {amount}")
+
+
+def validate_stamp_depth(depth: int) -> None:
+    """Validate stamp depth.
+
+    Args:
+        depth: The depth to validate
+
+    Raises:
+        ValueError: If depth is invalid
+    """
+    if not (16 <= depth <= 24):
+        raise ValueError(f"Stamp depth must be between 16 and 24, got: {depth}")
+
+
+def validate_data_size(data: str) -> None:
+    """Validate data size for upload.
+
+    Args:
+        data: The data to validate
+
+    Raises:
+        ValueError: If data size is invalid
+    """
+    data_bytes = data.encode('utf-8')
+    if len(data_bytes) > 4096:
+        raise ValueError(f"Data size {len(data_bytes)} bytes exceeds 4KB limit (4096 bytes)")
+    if len(data_bytes) == 0:
+        raise ValueError("Data cannot be empty")
+
 
 def create_server() -> Server:
     """Create and configure the MCP server."""
@@ -38,23 +137,27 @@ def create_server() -> Server:
         return [
             Tool(
                 name="purchase_stamp",
-                description="Purchase a new Swarm postage stamp",
+                description="Purchase a new Swarm postage stamp. Returns a 64-character hexadecimal batch ID (without 0x prefix) that can be used for uploading data to Swarm.",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "amount": {
                             "type": "integer",
-                            "description": f"Amount of the stamp in wei (default: {settings.default_stamp_amount})",
-                            "default": settings.default_stamp_amount
+                            "description": f"Amount of the stamp in wei. Higher amounts allow more data uploads and longer TTL (default: {settings.default_stamp_amount})",
+                            "default": settings.default_stamp_amount,
+                            "minimum": 1000000
                         },
                         "depth": {
                             "type": "integer",
-                            "description": f"Depth of the stamp (default: {settings.default_stamp_depth})",
-                            "default": settings.default_stamp_depth
+                            "description": f"Depth of the stamp (16-24). Higher depth allows more parallel uploads (default: {settings.default_stamp_depth})",
+                            "default": settings.default_stamp_depth,
+                            "minimum": 16,
+                            "maximum": 24
                         },
                         "label": {
                             "type": "string",
-                            "description": "Optional label for the stamp"
+                            "description": "Optional human-readable label for easier stamp identification",
+                            "maxLength": 100
                         }
                     },
                     "required": []
@@ -62,13 +165,14 @@ def create_server() -> Server:
             ),
             Tool(
                 name="get_stamp_status",
-                description="Get detailed information about a specific stamp",
+                description="Get detailed information about a specific stamp including TTL, expiration time, utilization, and usability status. Essential for checking if a stamp is still valid for uploads.",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "stamp_id": {
                             "type": "string",
-                            "description": "The batch ID of the stamp to query"
+                            "description": "The 64-character hexadecimal batch ID of the stamp (without 0x prefix). Example: a1b2c3d4e5f6789abcdef0123456789abcdef0123456789abcdef0123456789a",
+                            "pattern": "^[a-fA-F0-9]{64}$"
                         }
                     },
                     "required": ["stamp_id"]
@@ -76,7 +180,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="list_stamps",
-                description="List all available postage stamps",
+                description="List all available postage stamps with their details including batch IDs, amounts, depths, TTL, expiration times, and utilization. Shows both local stamps (owned by this node) and network stamps.",
                 inputSchema={
                     "type": "object",
                     "properties": {},
@@ -85,17 +189,19 @@ def create_server() -> Server:
             ),
             Tool(
                 name="extend_stamp",
-                description="Extend an existing stamp with additional funds",
+                description="Extend an existing stamp with additional funds to increase its TTL and allow more data uploads. The stamp must be owned by this node.",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "stamp_id": {
                             "type": "string",
-                            "description": "The batch ID of the stamp to extend"
+                            "description": "The 64-character hexadecimal batch ID of the stamp to extend (without 0x prefix). Example: a1b2c3d4e5f6789abcdef0123456789abcdef0123456789abcdef0123456789a",
+                            "pattern": "^[a-fA-F0-9]{64}$"
                         },
                         "amount": {
                             "type": "integer",
-                            "description": "Additional amount to add to the stamp in wei"
+                            "description": "Additional amount to add to the stamp in wei. This will extend the stamp's TTL proportionally.",
+                            "minimum": 1000000
                         }
                     },
                     "required": ["stamp_id", "amount"]
@@ -103,21 +209,23 @@ def create_server() -> Server:
             ),
             Tool(
                 name="upload_data",
-                description="Upload data to the Swarm network. Supports files up to 4KB. Validates that the stamp ID exists on this gateway before upload. Example SWIP-compliant JSON schema: {\"content_hash\": \"sha256:abc123...\", \"provenance_standard\": \"DaTA v1.0.0\", \"encryption\": \"none\", \"data\": {\"your_data\": \"here\"}, \"stamp_id\": \"0xfe2f...\"}",
+                description="Upload data to the Swarm network using a valid postage stamp. Supports files up to 4KB. Validates that the stamp ID exists and is usable before upload. Returns a Swarm reference hash for retrieving the data.",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "data": {
                             "type": "string",
-                            "description": "Data content to upload (max 4096 bytes)"
+                            "description": "Data content to upload as a string (max 4096 bytes). Can be JSON, text, or any string data.",
+                            "maxLength": 4096
                         },
                         "stamp_id": {
                             "type": "string",
-                            "description": "Postage stamp ID to use for upload"
+                            "description": "64-character hexadecimal batch ID of the postage stamp (without 0x prefix). Example: a1b2c3d4e5f6789abcdef0123456789abcdef0123456789abcdef0123456789a",
+                            "pattern": "^[a-fA-F0-9]{64}$"
                         },
                         "content_type": {
                             "type": "string",
-                            "description": "MIME type of the content",
+                            "description": "MIME type of the content (e.g., application/json, text/plain, image/png)",
                             "default": "application/json"
                         }
                     },
@@ -126,13 +234,14 @@ def create_server() -> Server:
             ),
             Tool(
                 name="download_data",
-                description="Download data from the Swarm network using a reference hash",
+                description="Download data from the Swarm network using a reference hash. Returns the raw data content. For binary data, size and type information is provided instead of content.",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "reference": {
                             "type": "string",
-                            "description": "Swarm reference hash of the data to download"
+                            "description": "64-character hexadecimal Swarm reference hash (without 0x prefix). Example: b2c3d4e5f6789abcdef0123456789abcdef0123456789abcdef0123456789ab",
+                            "pattern": "^[a-fA-F0-9]{64}$"
                         }
                     },
                     "required": ["reference"]
@@ -140,7 +249,7 @@ def create_server() -> Server:
             ),
             Tool(
                 name="health_check",
-                description="Check gateway and Swarm network connectivity status",
+                description="Check gateway and Swarm network connectivity status. Returns gateway URL, response time, and connection status. Useful for troubleshooting connectivity issues.",
                 inputSchema={
                     "type": "object",
                     "properties": {},
@@ -199,20 +308,38 @@ async def handle_purchase_stamp(arguments: Dict[str, Any]) -> CallToolResult:
         depth = arguments.get("depth", settings.default_stamp_depth)
         label = arguments.get("label")
 
+        # Validate inputs
+        validate_stamp_amount(amount)
+        validate_stamp_depth(depth)
+
+        if label and len(label) > 100:
+            return CallToolResult(
+                content=[TextContent(type="text", text="Error: Label cannot exceed 100 characters")],
+                isError=True
+            )
+
         result = gateway_client.purchase_stamp(amount, depth, label)
 
         response_text = f"Successfully purchased stamp!\n"
         response_text += f"Batch ID: {result['batchID']}\n"
-        response_text += f"Amount: {amount} wei\n"
+        response_text += f"Amount: {amount:,} wei\n"
         response_text += f"Depth: {depth}\n"
         if label:
             response_text += f"Label: {label}\n"
-        response_text += f"Message: {result['message']}"
+        response_text += f"Message: {result['message']}\n\n"
+        response_text += f"Note: Use this Batch ID (without 0x prefix) for uploading data to Swarm."
 
         return CallToolResult(
             content=[TextContent(type="text", text=response_text)]
         )
 
+    except ValueError as e:
+        error_msg = f"Validation error: {str(e)}"
+        logger.error(error_msg)
+        return CallToolResult(
+            content=[TextContent(type="text", text=error_msg)],
+            isError=True
+        )
     except RequestException as e:
         error_msg = f"Failed to purchase stamp: {str(e)}"
         logger.error(error_msg)
@@ -226,18 +353,45 @@ async def handle_get_stamp_status(arguments: Dict[str, Any]) -> CallToolResult:
     """Handle stamp status requests."""
     try:
         stamp_id = arguments["stamp_id"]
-        result = gateway_client.get_stamp_details(stamp_id)
 
-        response_text = f"Stamp Details for {stamp_id}:\n"
+        # Validate and clean stamp ID
+        clean_stamp_id = validate_and_clean_stamp_id(stamp_id)
+
+        result = gateway_client.get_stamp_details(clean_stamp_id)
+
+        response_text = f"Stamp Details for {clean_stamp_id}:\n"
         response_text += f"Amount: {result.get('amount', 'N/A')}\n"
         response_text += f"Depth: {result.get('depth', 'N/A')}\n"
         response_text += f"Bucket Depth: {result.get('bucketDepth', 'N/A')}\n"
         response_text += f"Block Number: {result.get('blockNumber', 'N/A')}\n"
-        response_text += f"Batch TTL: {result.get('batchTTL', 'N/A')} seconds\n"
+
+        # Enhanced TTL information
+        batch_ttl = result.get('batchTTL', 'N/A')
+        if batch_ttl != 'N/A':
+            response_text += f"Batch TTL: {batch_ttl:,} seconds ({batch_ttl/86400:.1f} days)\n"
+        else:
+            response_text += f"Batch TTL: {batch_ttl}\n"
+
         response_text += f"Expected Expiration: {result.get('expectedExpiration', 'N/A')}\n"
-        response_text += f"Usable: {result.get('usable', 'N/A')}\n"
-        response_text += f"Utilization: {result.get('utilization', 'N/A')}\n"
+
+        # Enhanced usability information
+        usable = result.get('usable', 'N/A')
+        response_text += f"Usable: {usable}"
+        if usable is False:
+            response_text += " ⚠️  (Cannot be used for uploads)"
+        elif usable is True:
+            response_text += " ✅ (Ready for uploads)"
+        response_text += "\n"
+
+        utilization = result.get('utilization', 'N/A')
+        if utilization != 'N/A' and isinstance(utilization, (int, float)):
+            response_text += f"Utilization: {utilization}%\n"
+        else:
+            response_text += f"Utilization: {utilization}\n"
+
         response_text += f"Immutable: {result.get('immutableFlag', 'N/A')}\n"
+        response_text += f"Local: {result.get('local', 'N/A')}\n"
+
         if result.get('label'):
             response_text += f"Label: {result['label']}\n"
 
@@ -245,6 +399,13 @@ async def handle_get_stamp_status(arguments: Dict[str, Any]) -> CallToolResult:
             content=[TextContent(type="text", text=response_text)]
         )
 
+    except ValueError as e:
+        error_msg = f"Validation error: {str(e)}"
+        logger.error(error_msg)
+        return CallToolResult(
+            content=[TextContent(type="text", text=error_msg)],
+            isError=True
+        )
     except RequestException as e:
         error_msg = f"Failed to get stamp status: {str(e)}"
         logger.error(error_msg)
@@ -294,17 +455,28 @@ async def handle_extend_stamp(arguments: Dict[str, Any]) -> CallToolResult:
         stamp_id = arguments["stamp_id"]
         amount = arguments["amount"]
 
-        result = gateway_client.extend_stamp(stamp_id, amount)
+        # Validate inputs
+        clean_stamp_id = validate_and_clean_stamp_id(stamp_id)
+        validate_stamp_amount(amount)
+
+        result = gateway_client.extend_stamp(clean_stamp_id, amount)
 
         response_text = f"Successfully extended stamp!\n"
         response_text += f"Batch ID: {result['batchID']}\n"
-        response_text += f"Additional Amount: {amount} wei\n"
+        response_text += f"Additional Amount: {amount:,} wei\n"
         response_text += f"Message: {result['message']}"
 
         return CallToolResult(
             content=[TextContent(type="text", text=response_text)]
         )
 
+    except ValueError as e:
+        error_msg = f"Validation error: {str(e)}"
+        logger.error(error_msg)
+        return CallToolResult(
+            content=[TextContent(type="text", text=error_msg)],
+            isError=True
+        )
     except RequestException as e:
         error_msg = f"Failed to extend stamp: {str(e)}"
         logger.error(error_msg)
@@ -321,6 +493,10 @@ async def handle_upload_data(arguments: Dict[str, Any]) -> CallToolResult:
         stamp_id = arguments["stamp_id"]
         content_type = arguments.get("content_type", "application/json")
 
+        # Validate inputs
+        validate_data_size(data)
+        clean_stamp_id = validate_and_clean_stamp_id(stamp_id)
+
         # First, check if the stamp exists on this gateway
         # Note: Newly purchased stamps may not be immediately available via get_stamp_details
         # so we'll try to validate but allow upload to proceed if validation fails with 404
@@ -328,14 +504,14 @@ async def handle_upload_data(arguments: Dict[str, Any]) -> CallToolResult:
         validation_error_msg = ""
 
         try:
-            stamp_details = gateway_client.get_stamp_details(stamp_id)
+            stamp_details = gateway_client.get_stamp_details(clean_stamp_id)
 
             # Verify it's a usable stamp
             if not stamp_details.get("usable", False):
                 return CallToolResult(
                     content=[TextContent(
                         type="text",
-                        text=f"Stamp {stamp_id} exists on this gateway but is not usable for uploads. "
+                        text=f"Stamp {clean_stamp_id} exists on this gateway but is not usable for uploads. "
                              f"Please use a different stamp or create a new one with the 'purchase_stamp' tool."
                     )],
                     isError=True
@@ -348,7 +524,7 @@ async def handle_upload_data(arguments: Dict[str, Any]) -> CallToolResult:
                     # Don't immediately fail - the stamp might be newly purchased
                     # We'll let the upload attempt proceed and let the gateway handle validation
                     stamp_validation_failed = True
-                    validation_error_msg = f"Could not validate stamp {stamp_id} (it may be newly purchased)"
+                    validation_error_msg = f"Could not validate stamp {clean_stamp_id} (it may be newly purchased)"
                 else:
                     # Other HTTP errors should be re-raised
                     raise
@@ -357,17 +533,17 @@ async def handle_upload_data(arguments: Dict[str, Any]) -> CallToolResult:
                 raise
 
         # Proceed with upload if stamp validation passed
-        result = gateway_client.upload_data(data, stamp_id, content_type)
+        result = gateway_client.upload_data(data, clean_stamp_id, content_type)
 
-        response_text = f"Successfully uploaded data!\\n"
-        response_text += f"Reference: {result['reference']}\\n"
-        response_text += f"Stamp ID: {stamp_id}\\n"
-        response_text += f"Content Type: {content_type}\\n"
-        response_text += f"Size: {len(data.encode('utf-8'))} bytes"
+        response_text = f"Successfully uploaded data!\n"
+        response_text += f"Reference: {result['reference']}\n"
+        response_text += f"Stamp ID: {clean_stamp_id}\n"
+        response_text += f"Content Type: {content_type}\n"
+        response_text += f"Size: {len(data.encode('utf-8')):,} bytes"
 
         # Add validation warning if applicable
         if stamp_validation_failed:
-            response_text += f"\\nNote: {validation_error_msg}"
+            response_text += f"\nNote: {validation_error_msg}"
 
         return CallToolResult(
             content=[TextContent(type="text", text=response_text)]
@@ -394,22 +570,32 @@ async def handle_download_data(arguments: Dict[str, Any]) -> CallToolResult:
     try:
         reference = arguments["reference"]
 
-        result_bytes = gateway_client.download_data(reference)
+        # Validate and clean reference hash
+        clean_reference = validate_and_clean_reference_hash(reference)
+
+        result_bytes = gateway_client.download_data(clean_reference)
 
         # Try to decode as text, assume JSON content
         try:
             result_text = result_bytes.decode('utf-8')
-            response_text = f"Successfully downloaded data from {reference}:\\n\\n{result_text}"
+            response_text = f"Successfully downloaded data from {clean_reference}:\n\n{result_text}"
         except UnicodeDecodeError:
             # If not valid UTF-8, show as binary data info
-            response_text = f"Successfully downloaded binary data from {reference}\\n"
-            response_text += f"Size: {len(result_bytes)} bytes\\n"
+            response_text = f"Successfully downloaded binary data from {clean_reference}\n"
+            response_text += f"Size: {len(result_bytes):,} bytes\n"
             response_text += f"Note: Binary data cannot be displayed as text"
 
         return CallToolResult(
             content=[TextContent(type="text", text=response_text)]
         )
 
+    except ValueError as e:
+        error_msg = f"Validation error: {str(e)}"
+        logger.error(error_msg)
+        return CallToolResult(
+            content=[TextContent(type="text", text=error_msg)],
+            isError=True
+        )
     except RequestException as e:
         error_msg = f"Failed to download data: {str(e)}"
         logger.error(error_msg)
