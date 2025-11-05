@@ -6,11 +6,20 @@
 > ⚠️ **DATA PERSISTENCE WARNING**
 > Storage on Swarm is **rented storage** with limited time periods. The default configuration uses very short rental periods (approximately **1 day**). **Do not expect uploaded data to persist longer than the rental period.** Data will become unavailable when the postage stamp expires.
 
-A Model Context Protocol (MCP) server for managing Swarm postage stamps through a centralized FastAPI gateway.
+A Model Context Protocol (MCP) server for managing Swarm postage stamps and provenance data storage through a centralized FastAPI gateway. Enables AI agents to upload provenance data to the decentralized Swarm network for immutable storage and retrieve it by reference.
 
 ## Overview
 
-This MCP server provides tools for AI agents to interact with Swarm postage stamps, including purchasing, extending, and monitoring stamps. It acts as a bridge between AI agents and the `swarm_connect` FastAPI gateway.
+This MCP server provides tools for AI agents to interact with Swarm postage stamps and provenance data storage, including purchasing and extending stamps, uploading provenance data to Swarm for immutable decentralized storage, and downloading data from the network by reference. It acts as a bridge between AI agents and the `swarm_connect` FastAPI gateway.
+
+## Provenance & Immutable Storage
+
+This MCP server is specifically designed for provenance data use cases, leveraging Swarm's decentralized network to provide:
+
+- **Immutable Records**: Once uploaded, data cannot be altered, ensuring integrity
+- **Decentralized Storage**: No single point of failure or central authority
+- **Provenance Metadata**: Support for structured provenance records with creator, timestamp, and lineage information
+- **Verifiable Authenticity**: Cryptographic integrity verification for uploaded data
 
 ## Features
 
@@ -20,6 +29,7 @@ This MCP server provides tools for AI agents to interact with Swarm postage stam
 - **Extend Stamps**: Add additional funds to existing stamps
 - **Data Upload**: Upload data to Swarm network with stamp validation
 - **Data Download**: Download data from Swarm network by reference
+- **Provenance Storage**: Store data with provenance metadata for immutable, verifiable records
 - **Health Monitoring**: Check gateway and Swarm network connectivity
 
 ## Installation
@@ -333,7 +343,10 @@ This MCP server is designed to work with AI agents that support the Model Contex
 1. **Manage stamp inventory**: Purchase and extend stamps as needed
 2. **Monitor usage**: Check stamp status and utilization
 3. **Optimize costs**: List stamps to find the most suitable ones for tasks
-4. **Automate workflows**: Integrate stamp management into larger AI workflows
+4. **Store provenance data**: Upload data with provenance metadata to immutable decentralized storage
+5. **Verify data integrity**: Retrieve and verify immutable records from Swarm network
+6. **Data lifecycle management**: Handle complete provenance workflows from creation to verification
+7. **Automate workflows**: Integrate stamp management and data storage into larger AI workflows
 
 ## Troubleshooting
 
