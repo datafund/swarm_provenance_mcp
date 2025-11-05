@@ -1,5 +1,11 @@
 # Swarm Provenance MCP
 
+> ⚠️ **ALPHA SOFTWARE - PROOF OF CONCEPT**
+> This software is in **Alpha stage** and should be considered a **Proof of Concept**. Use for testing and experimentation only. Not recommended for production use.
+
+> ⚠️ **DATA PERSISTENCE WARNING**
+> Storage on Swarm is **rented storage** with limited time periods. The default configuration uses very short rental periods (approximately **1 day**). **Do not expect uploaded data to persist longer than the rental period.** Data will become unavailable when the postage stamp expires.
+
 A Model Context Protocol (MCP) server for managing Swarm postage stamps through a centralized FastAPI gateway.
 
 ## Overview
