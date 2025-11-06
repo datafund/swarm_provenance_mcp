@@ -44,7 +44,8 @@ This MCP server is specifically designed for provenance data use cases, leveragi
 
 1. Clone the repository:
 ```bash
-cd /path/to/Provenance_Projects/swarm_provenance_mcp
+git clone https://github.com/datafund/swarm_provenance_mcp.git
+cd swarm_provenance_mcp
 ```
 
 2. Create and activate a virtual environment:
@@ -249,17 +250,24 @@ Check gateway and Swarm network connectivity status.
 
 1. **Install Claude Desktop**: Download from [claude.ai](https://claude.ai/download)
 
-2. **Clone this repository and set up environment**:
+2. **Clone and set up this repository**:
 ```bash
+# Clone the repository
 git clone https://github.com/datafund/swarm_provenance_mcp.git
+
+# Navigate to the project directory
 cd swarm_provenance_mcp
 
 # Create and activate virtual environment
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Install the package in development mode
 pip install -e .
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env file if you need to customize gateway URL or defaults
 ```
 
 3. **Configure MCP Server**: Add to Claude Desktop's configuration file:
